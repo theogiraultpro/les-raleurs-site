@@ -9,7 +9,7 @@
 
 export const CONTACT_EMAIL = 'contact@lesraleurs.com';
 
-export const WEB3FORMS_KEY: string = '';
+export const WEB3FORMS_KEY: string = '27867f84-ae67-42ea-a92d-0297d2374fa4';
 
 export type SendResult = 'sent' | 'mailto';
 
