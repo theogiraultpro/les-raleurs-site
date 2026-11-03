@@ -22,6 +22,8 @@ import TNFPage from "./pages/TNFPage";
 import FixeLeMouvementPage from "./pages/FixeLeMouvementPage";
 import SolvayPage from "./pages/SolvayPage";
 import RaleursGraffPage from "./pages/RaleursGraffPage";
+import MentionsLegalesPage from "./pages/MentionsLegalesPage";
+import CGVPage from "./pages/CGVPage";
 
 export const router = createBrowserRouter([
   {
@@ -50,6 +52,8 @@ export const router = createBrowserRouter([
       { path: "about", Component: AboutPage },
       { path: "commissions", Component: CommissionsPage },
       { path: "graphisme", Component: GraphismePage },
+      { path: "mentions-legales", Component: MentionsLegalesPage },
+      { path: "cgv", Component: CGVPage },
     ],
   },
 ]);

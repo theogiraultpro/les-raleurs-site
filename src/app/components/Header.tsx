@@ -2,6 +2,7 @@ import { ShoppingBag, Instagram, Mail, Heart } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router';
 import logo from '@/imports/figma/b754442f94e8c7ceed8a38ab7b6000231d38433e.png';
+import { CONTACT_EMAIL } from '../lib/contact';
 
 interface HeaderProps {
   cartCount: number;
@@ -73,9 +74,8 @@ export function Header({ cartCount, onCartClick, favoritesCount, onFavoritesClic
             </motion.a>
 
             <motion.a
-              href="mailto:theo.girault.pro@gmail.com"
-              target="_blank"
-              rel="noopener noreferrer"
+              href={`mailto:${CONTACT_EMAIL}`}
+              aria-label={`Écrire à ${CONTACT_EMAIL}`}
               className="p-2 hover:bg-gray-50 rounded-full transition-colors"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}

@@ -7,6 +7,15 @@ import exampleImage3 from '@/imports/figma/bcbbf0e2aff798b357d41be75d3085522c516
 import exampleImage4 from '@/imports/figma/ac7c61240dacda776e2cd7085b803686ea6b6b52.jpg';
 import exampleImage5 from '@/imports/figma/a613346acc5bd7b0d1973cfd6eecf2119cb75452.jpg';
 import exampleImage6 from '@/imports/figma/48a13cc1101a6d500bf61add489ed5e9131ce42e.jpg';
+import { CONTACT_EMAIL, sendForm } from '../lib/contact';
+
+const SERVICE_LABELS: Record<string, string> = {
+  'illustration-personnalisee': 'Illustration personnalisée',
+  'portrait-personnalise': 'Portrait personnalisé',
+  'illustration-commerciale': 'Illustration commerciale',
+  'serie-collection': 'Série / Collection',
+  collaboration: 'Collaboration événement',
+};
 
 export default function CommissionsPage() {
   const [formData, setFormData] = useState({
@@ -17,16 +26,37 @@ export default function CommissionsPage() {
     deadline: '',
     message: '',
   });
+  const [botcheck, setBotcheck] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Commission request submitted:', formData);
-    setIsSubmitted(true);
-    setTimeout(() => {
-      setIsSubmitted(false);
+    setIsSending(true);
+    setError('');
+    const service = SERVICE_LABELS[formData.serviceType];
+    try {
+      const result = await sendForm(
+        `Commission — ${service} — ${formData.name}`,
+        {
+          Nom: formData.name,
+          'E-mail': formData.email,
+          'Type de service': service,
+          'Budget estimé': formData.budget,
+          'Délai souhaité': formData.deadline,
+          Projet: formData.message,
+        },
+        { replyTo: formData.email, botcheck },
+      );
+      if (result === 'mailto') return;
+      setIsSubmitted(true);
       setFormData({ name: '', email: '', serviceType: 'illustration-personnalisee', budget: '', deadline: '', message: '' });
-    }, 3000);
+    } catch {
+      setError(`La demande n'a pas pu partir. Réessayez, ou écrivez directement à ${CONTACT_EMAIL}.`);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -413,15 +443,33 @@ export default function CommissionsPage() {
                 />
               </div>
 
+              {/* Champ piège invisible pour les robots */}
+              <input
+                type="checkbox"
+                name="botcheck"
+                checked={botcheck}
+                onChange={(e) => setBotcheck(e.target.checked)}
+                className="hidden"
+                tabIndex={-1}
+                autoComplete="off"
+              />
+
+              {error && (
+                <p className="text-red-600" role="alert" style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 400 }}>
+                  {error}
+                </p>
+              )}
+
               <motion.button
                 type="submit"
-                className="w-full bg-black text-white py-4 rounded-lg flex items-center justify-center gap-2"
+                disabled={isSending}
+                className="w-full bg-black text-white py-4 rounded-lg flex items-center justify-center gap-2 disabled:opacity-60"
                 style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 800 }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
                 <Send size={20} />
-                ENVOYER LA DEMANDE
+                {isSending ? 'ENVOI EN COURS…' : 'ENVOYER LA DEMANDE'}
               </motion.button>
             </form>
           )}

@@ -1,6 +1,13 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
 import { useState } from 'react';
 import { Instagram, Mail, Send } from 'lucide-react';
+import { CONTACT_EMAIL, sendForm } from '../lib/contact';
+
+const REQUEST_LABELS: Record<string, string> = {
+  projet: 'Proposer un projet',
+  renseignement: 'Demander un renseignement',
+  autre: 'Autre',
+};
 
 export default function AboutPage() {
   const [formData, setFormData] = useState({
@@ -9,16 +16,34 @@ export default function AboutPage() {
     projectType: 'projet',
     message: '',
   });
+  const [botcheck, setBotcheck] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    setIsSubmitted(true);
-    setTimeout(() => {
-      setIsSubmitted(false);
+    setIsSending(true);
+    setError('');
+    try {
+      const result = await sendForm(
+        `Contact — ${REQUEST_LABELS[formData.projectType]} — ${formData.name}`,
+        {
+          Nom: formData.name,
+          'E-mail': formData.email,
+          'Type de demande': REQUEST_LABELS[formData.projectType],
+          Message: formData.message,
+        },
+        { replyTo: formData.email, botcheck },
+      );
+      if (result === 'mailto') return;
+      setIsSubmitted(true);
       setFormData({ name: '', email: '', projectType: 'projet', message: '' });
-    }, 3000);
+    } catch {
+      setError(`Le message n'a pas pu partir. Réessayez, ou écrivez directement à ${CONTACT_EMAIL}.`);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -124,18 +149,43 @@ export default function AboutPage() {
                 />
               </div>
 
+              {/* Champ piège invisible pour les robots */}
+              <input
+                type="checkbox"
+                name="botcheck"
+                checked={botcheck}
+                onChange={(e) => setBotcheck(e.target.checked)}
+                className="hidden"
+                tabIndex={-1}
+                autoComplete="off"
+              />
+
+              {error && (
+                <p className="text-red-600" role="alert" style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 400 }}>
+                  {error}
+                </p>
+              )}
+
               <motion.button
                 type="submit"
-                className="w-full bg-black text-white py-4 rounded-lg overflow-hidden relative"
+                disabled={isSending}
+                className="w-full bg-black text-white py-4 rounded-lg overflow-hidden relative disabled:opacity-60"
                 style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 800 }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
                 <span className="relative z-10 flex items-center justify-center gap-2">
                   <Send size={20} />
-                  ENVOYER
+                  {isSending ? 'ENVOI EN COURS…' : 'ENVOYER'}
                 </span>
               </motion.button>
+
+              <p className="text-center text-gray-500 text-sm" style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 400 }}>
+                Vous pouvez aussi écrire directement à{' '}
+                <a href={`mailto:${CONTACT_EMAIL}`} className="underline hover:text-black">
+                  {CONTACT_EMAIL}
+                </a>
+              </p>
             </form>
           )}
         </motion.div>

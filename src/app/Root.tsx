@@ -4,6 +4,7 @@ import { Header } from './components/Header';
 import CustomCursor from './components/CustomCursor';
 import { Cart } from './components/Cart';
 import { Favorites } from './components/Favorites';
+import { Footer } from './components/Footer';
 
 interface CartItem {
   id: number;
@@ -109,7 +110,10 @@ export default function Root() {
         items={cartItems}
         onUpdateQuantity={handleUpdateQuantity}
         onRemoveItem={handleRemoveItem}
+        onOrderSent={() => setCartItems([])}
       />
+
+      {location.pathname !== '/' && <Footer />}
 
       <Favorites
         isOpen={isFavoritesOpen}
