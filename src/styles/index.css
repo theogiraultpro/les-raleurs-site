@@ -1,0 +1,23 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+html {
+  position: relative;
+}
+
+html.landing-scroll-hidden {
+  scrollbar-width: none;
+}
+
+html.landing-scroll-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+html, body {
+  cursor: none !important;
+}
+
+*, *::before, *::after {
+  cursor: none !important;
+}
