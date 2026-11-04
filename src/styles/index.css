@@ -6,6 +6,11 @@ html {
   position: relative;
 }
 
+/* Filet de sécurité : rien ne doit créer de défilement horizontal sur mobile */
+html, body {
+  overflow-x: clip;
+}
+
 html.landing-scroll-hidden {
   scrollbar-width: none;
 }

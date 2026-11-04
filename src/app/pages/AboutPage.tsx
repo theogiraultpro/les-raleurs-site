@@ -63,7 +63,7 @@ export default function AboutPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          <h1 className="text-6xl sm:text-7xl md:text-[8rem] mb-2 mt-8 md:mt-12 tracking-tight leading-none" style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 800, fontStyle: 'italic' }}>
+          <h1 className="text-[clamp(4.5rem,23vw,13rem)] mb-4 mt-2 md:mt-6 tracking-tight leading-[0.9]" style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 800, fontStyle: 'italic' }}>
             Contact
           </h1>
           <p className="text-xl text-gray-600" style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 400 }}>
