@@ -111,7 +111,7 @@ export default function Home() {
       >
         <div className="max-w-7xl mx-auto text-center">
           <motion.h1
-            className="text-[10rem] mb-2 tracking-tight leading-none"
+            className="text-6xl sm:text-8xl md:text-[10rem] mb-2 tracking-tight leading-none"
             style={{
               fontFamily: '"aktiv-grotesk-condensed", sans-serif',
               fontWeight: 800,
