@@ -24,6 +24,7 @@ import SolvayPage from "./pages/SolvayPage";
 import RaleursGraffPage from "./pages/RaleursGraffPage";
 import MentionsLegalesPage from "./pages/MentionsLegalesPage";
 import CGVPage from "./pages/CGVPage";
+import TitresDemoPage from "./pages/TitresDemoPage";
 
 export const router = createBrowserRouter([
   {
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
       { path: "graphisme", Component: GraphismePage },
       { path: "mentions-legales", Component: MentionsLegalesPage },
       { path: "cgv", Component: CGVPage },
+      { path: "titres", Component: TitresDemoPage },
     ],
   },
 ]);
