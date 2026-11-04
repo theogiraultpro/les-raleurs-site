@@ -63,9 +63,7 @@ export function Header({ cartCount, onCartClick, favoritesCount, onFavoritesClic
               <button
                 key={link.to}
                 onClick={() => navigate(link.to)}
-                className={`text-base hover:text-gray-600 transition-colors ${
-                  location.pathname === link.to ? 'underline underline-offset-4' : ''
-                }`}
+                className="text-base hover:text-gray-600 transition-colors"
                 style={navFont}
               >
                 {link.label}

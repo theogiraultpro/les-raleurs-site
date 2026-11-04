@@ -99,14 +99,14 @@ export default function GraphismePage() {
     <>
       {/* Hero Section */}
       <motion.section
-        className="pt-24 md:pt-32 pb-20 md:pb-24 px-4 md:px-6"
+        className="pt-24 md:pt-48 pb-20 md:pb-24 px-4 md:px-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
         <div className="max-w-7xl mx-auto text-center">
           <motion.h1
-            className="text-[clamp(4rem,18.5vw,13rem)] mb-4 tracking-tight leading-[0.9]"
+            className="text-[18.5vw] md:text-[10rem] mb-4 md:mb-2 tracking-tight leading-[0.9] md:leading-none"
             style={{
               fontFamily: '"aktiv-grotesk-condensed", sans-serif',
               fontWeight: 800,

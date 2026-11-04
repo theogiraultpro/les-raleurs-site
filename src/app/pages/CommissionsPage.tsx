@@ -149,7 +149,7 @@ export default function CommissionsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          <h1 className="text-[clamp(3.5rem,15.5vw,13rem)] mb-4 mt-2 md:mt-6 tracking-tight leading-[0.9]" style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 800, fontStyle: 'italic' }}>
+          <h1 className="text-[15.5vw] md:text-[8rem] mb-4 md:mb-2 mt-2 md:mt-12 tracking-tight leading-[0.9] md:leading-none" style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 800, fontStyle: 'italic' }}>
             Commissions
           </h1>
           <p className="text-xl text-gray-600" style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 400 }}>

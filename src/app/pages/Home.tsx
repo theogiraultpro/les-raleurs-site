@@ -103,7 +103,7 @@ export default function Home() {
     <>
       {/* Hero Section */}
       <motion.section
-        className="pt-24 md:pt-32 pb-20 md:pb-24 px-4 md:px-6"
+        className="pt-24 md:pt-48 pb-20 md:pb-24 px-4 md:px-6"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.25 }}
@@ -111,7 +111,7 @@ export default function Home() {
       >
         <div className="max-w-7xl mx-auto text-center">
           <motion.h1
-            className="text-[clamp(4rem,18vw,13rem)] mb-4 tracking-tight leading-[0.9]"
+            className="text-[18vw] md:text-[10rem] mb-4 md:mb-2 tracking-tight leading-[0.9] md:leading-none"
             style={{
               fontFamily: '"aktiv-grotesk-condensed", sans-serif',
               fontWeight: 800,
