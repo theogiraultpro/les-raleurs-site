@@ -25,3 +25,6 @@ logs/
 /originaux-images/
 /assets/
 .DS_Store
+
+# Stockage de test local de la page /admin
+/.local-storage/

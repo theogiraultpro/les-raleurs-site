@@ -10,6 +10,8 @@ import CGVPage from "./pages/CGVPage";
 import EntryPage from "./pages/EntryPage";
 
 export const router = createBrowserRouter([
+  // Page de gestion, chargée seulement quand on y va (rien de plus à télécharger pour les visiteurs)
+  { path: "/admin", lazy: async () => ({ Component: (await import("./admin/AdminPage")).default }) },
   {
     path: "/",
     Component: Root,

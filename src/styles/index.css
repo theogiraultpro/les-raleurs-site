@@ -19,10 +19,11 @@ html.landing-scroll-hidden::-webkit-scrollbar {
   display: none;
 }
 
-html, body {
+/* Curseur personnalisé sur tout le site, sauf la page /admin */
+html:not(.admin-page), html:not(.admin-page) body {
   cursor: none !important;
 }
 
-*, *::before, *::after {
+html:not(.admin-page) *, html:not(.admin-page) *::before, html:not(.admin-page) *::after {
   cursor: none !important;
 }

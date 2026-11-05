@@ -1,16 +1,47 @@
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { defaultContent } from './defaultContent';
 import type { Illustration, Project, SiteContent } from './types';
 
 const ContentContext = createContext<SiteContent>(defaultContent);
 
+/** Délai max d'attente du contenu publié avant d'afficher le contenu de départ. */
+const LOAD_TIMEOUT_MS = 2500;
+
+async function fetchPublishedContent(signal: AbortSignal): Promise<SiteContent | null> {
+  const response = await fetch('/api/content', { signal });
+  if (!response.ok) return null;
+  const data = (await response.json()) as { content: SiteContent | null };
+  const content = data.content;
+  if (!content || !Array.isArray(content.illustrations) || !Array.isArray(content.projects)) return null;
+  return content;
+}
+
 /**
- * Fournit le contenu du site à toutes les pages.
- * Pour l'instant : le contenu de départ embarqué dans le site.
- * Plus tard : le contenu publié depuis la page /admin.
+ * Fournit le contenu du site à toutes les pages :
+ * le contenu publié depuis /admin s'il existe, sinon le contenu de départ
+ * embarqué dans le site (defaultContent.ts).
  */
 export function ContentProvider({ children }: { children: ReactNode }) {
-  return <ContentContext.Provider value={defaultContent}>{children}</ContentContext.Provider>;
+  const [content, setContent] = useState<SiteContent | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), LOAD_TIMEOUT_MS);
+    fetchPublishedContent(controller.signal)
+      .then((published) => setContent(published ?? defaultContent))
+      .catch(() => setContent(defaultContent))
+      .finally(() => clearTimeout(timer));
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, []);
+
+  // Écran blanc très bref le temps de lire le contenu, pour ne jamais afficher
+  // une version périmée (œuvre masquée, prix modifié…).
+  if (!content) return <div className="min-h-screen bg-white" />;
+
+  return <ContentContext.Provider value={content}>{children}</ContentContext.Provider>;
 }
 
 export function useContent() {
