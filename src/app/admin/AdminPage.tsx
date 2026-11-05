@@ -10,6 +10,12 @@ import { IllustrationEditor, ProjectEditor } from './Editors';
 
 type Tab = 'illustrations' | 'projects';
 
+/** Le vrai site. Les liens « Voir » y mènent toujours (sauf en test local). */
+const SITE_URL = 'https://lesraleurs.com';
+const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const isPreview = !isLocal && window.location.hostname !== new URL(SITE_URL).hostname;
+const siteLink = (path: string) => (isLocal ? path : `${SITE_URL}${path}`);
+
 export default function AdminPage() {
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -214,7 +220,7 @@ function Editor({ storage, onLogout }: { storage: SessionInfo['storage']; onLogo
       <header className="sticky top-0 z-20 border-b border-neutral-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
           <h1 className="mr-auto text-lg font-bold italic">Les Râleurs — admin</h1>
-          <a href="/illustrations" target="_blank" rel="noreferrer" className="hidden items-center gap-1 text-sm text-neutral-600 hover:text-black sm:inline-flex">
+          <a href={siteLink('/illustrations')} target="_blank" rel="noreferrer" className="hidden items-center gap-1 text-sm text-neutral-600 hover:text-black sm:inline-flex">
             Voir le site <ExternalLink size={14} />
           </a>
           <button
@@ -230,8 +236,16 @@ function Editor({ storage, onLogout }: { storage: SessionInfo['storage']; onLogo
             <LogOut size={18} />
           </IconButton>
         </div>
-        {(status.message || storage === 'none' || storage === 'local' || isFirstPublish) && (
+        {(status.message || storage === 'none' || storage === 'local' || isFirstPublish || isPreview) && (
           <div className="mx-auto max-w-6xl space-y-1 px-4 pb-3 text-sm">
+            {isPreview && (
+              <p className="text-amber-700">
+                Tu es sur une adresse d'aperçu. Les publications changent quand même le vrai site.{' '}
+                <a href={`${SITE_URL}/admin`} className="font-medium underline">
+                  Ouvrir l'admin sur lesraleurs.com
+                </a>
+              </p>
+            )}
             {storage === 'none' && (
               <p className="text-amber-700">Le stockage Vercel Blob n'est pas encore relié au projet : impossible de publier pour l'instant.</p>
             )}
@@ -326,7 +340,7 @@ function Editor({ storage, onLogout }: { storage: SessionInfo['storage']; onLogo
                 <h2 className="mr-auto truncate text-xl font-bold italic">{current.title}</h2>
                 {!current.hidden && (
                   <a
-                    href={`/${current.slug}`}
+                    href={siteLink(`/${current.slug}`)}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex shrink-0 items-center gap-1 text-sm text-neutral-600 hover:text-black"
