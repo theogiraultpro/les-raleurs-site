@@ -1,93 +1,20 @@
 import { motion } from 'motion/react';
 import { useNavigate, useOutletContext } from 'react-router';
 import { ProductCard } from '../components/ProductCard';
-import illustration1 from '@/imports/figma/2470a98a97316dc54d53b1ec8a3e21c965edf1e5.jpg';
-import illustration2 from '@/imports/figma/2a4c56ea70238f4af8e8e351ba8231ac88a71428.jpg';
-import illustrationBoxeur from '@/imports/a__la_boxe.jpg';
-import illustrationFestival from '@/imports/festival.jpg';
-import illustrationMechant from '@/imports/les_me_chant_ra_leurs.jpg';
-import illustration6 from '@/imports/Chill_icon.jpg';
-import illustrationMetro from '@/imports/Au_me_tro.jpg';
-import illustrationBar from '@/imports/Au_Bar-1.jpg';
-import illustrationGraff from '@/imports/graffeurs.jpg';
+import { useContent } from '../content/ContentContext';
 
-const products = [
-  {
-    id: 9,
-    name: 'Les Râleurs Dégradent',
-    price: 35.00,
-    image: illustrationGraff,
-    category: 'Print 30x40',
-    path: '/graff',
-  },
-  {
-    id: 8,
-    name: 'Les Râleurs au Bar',
-    price: 70.00,
-    image: illustrationBar,
-    category: 'Print 40x50',
-    path: '/bar',
-  },
-  {
-    id: 7,
-    name: 'Les Râleurs du Métro',
-    price: 35.00,
-    image: illustrationMetro,
-    category: 'Print 30x40',
-    path: '/metro',
-  },
-  {
-    id: 1,
-    name: 'Les Râleurs du Ring',
-    price: 35.00,
-    image: illustrationBoxeur,
-    category: 'Print 30x40',
-    path: '/ring',
-  },
-  {
-    id: 2,
-    name: 'Les Râleurs en Festival',
-    price: 70.00,
-    image: illustrationFestival,
-    category: 'Print 40x50',
-    path: '/festival',
-  },
-  {
-    id: 3,
-    name: 'Les Méchants Râleurs',
-    price: 35.00,
-    image: illustrationMechant,
-    category: 'Print 30x40',
-    path: '/hostiles',
-  },
-  {
-    id: 4,
-    name: 'Les Râleurs de Paris Est',
-    price: 35.00,
-    image: illustration2,
-    category: 'Print 30x40',
-    path: '/paris-est',
-  },
-  {
-    id: 5,
-    name: 'Les Râleurs de Teuf',
-    price: 70.00,
-    image: illustration1,
-    category: 'Print 40x50',
-    path: '/teuf',
-  },
-  {
-    id: 6,
-    name: 'Les Râleurs',
-    price: 20.00,
-    image: illustration6,
-    category: 'Print 20x20',
-    path: '/raleurs',
-  },
-];
 
 export default function Home() {
   const navigate = useNavigate();
+  const { visibleIllustrations } = useContent();
+  const products = visibleIllustrations.map((item) => ({
+    id: item.cartId,
+    name: item.card.title,
+    price: item.card.price ?? 0,
+    image: item.card.image,
+    category: item.card.subtitle,
+    path: `/${item.slug}`,
+  }));
   const { handleAddToCart, handleToggleFavorite, isFavorite } = useOutletContext<{
     handleAddToCart: (p: { id: number; name: string; price: number; image: string }) => void;
     handleToggleFavorite: (item: { id: string; title: string; image: string; type: 'illustration' | 'portfolio'; route: string }) => void;
