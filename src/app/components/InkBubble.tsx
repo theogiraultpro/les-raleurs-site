@@ -88,155 +88,199 @@ interface Piece {
 export interface Splat {
   x: number;
   y: number;
-  /** Impact central aux bords festonnés. */
+  /** Tache principale : masse lobée et doigts épais aux bouts arrondis. */
   core: string;
-  /** Jets effilés terminés par une goutte ronde. */
+  /** Gouttes satellites collées ou presque à la tache. */
   spines: string;
-  /** Gouttes (chapelets, larmes, bruine), regroupées par distance pour l'animation. */
+  /** Gouttes projetées et bruine, regroupées par distance pour l'animation. */
   flecks: string[];
+  /** Coulures verticales (façon Sin City) ; absent des anciennes taches enregistrées. */
+  drips?: string;
+}
+
+/** Tous les contours dans le même sens, sinon leurs recouvrements se trouent. */
+function clockwise(pts: Point[]): Point[] {
+  let area = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const [x1, y1] = pts[i];
+    const [x2, y2] = pts[(i + 1) % pts.length];
+    area += x1 * y2 - x2 * y1;
+  }
+  return area < 0 ? pts.reverse() : pts;
 }
 
 /** Cercle en chemin SVG. */
 function circlePath(cx: number, cy: number, r: number): string {
-  return `M${f2(cx - r)},${f2(cy)} a${f2(r)},${f2(r)} 0 1 0 ${f2(r * 2)},0 a${f2(r)},${f2(r)} 0 1 0 ${f2(-r * 2)},0 Z`;
+  return `M${f2(cx - r)},${f2(cy)} a${f2(r)},${f2(r)} 0 1 1 ${f2(r * 2)},0 a${f2(r)},${f2(r)} 0 1 1 ${f2(-r * 2)},0 Z`;
 }
 
-/** Goutte en larme : tête ronde au bout, queue effilée vers l'impact. */
-function teardrop(cx: number, cy: number, angle: number, head: number, tail: number): string {
-  const ux = Math.cos(angle);
-  const uy = Math.sin(angle);
-  const px = -uy;
-  const py = ux;
+/** Goutte ovale irrégulière, étirée selon `angle`. */
+function blob(cx: number, cy: number, size: number, angle: number, stretch: number, wobble = 0.12): string {
   const pts: Point[] = [];
-  // Queue (vers le centre) puis tour de la tête.
-  const tipX = cx - ux * tail;
-  const tipY = cy - uy * tail;
-  pts.push([tipX, tipY]);
-  for (let i = 0; i <= 10; i++) {
-    const t = -Math.PI / 2 + (i / 10) * Math.PI;
-    const k = Math.cos(t);
-    const along = Math.sin(t);
-    pts.push([cx + px * head * along * -1 + ux * head * k * 0.9, cy + py * head * along * -1 + uy * head * k * 0.9]);
+  const n = 10;
+  const ca = Math.cos(angle);
+  const sa = Math.sin(angle);
+  for (let k = 0; k < n; k++) {
+    const b = (k / n) * Math.PI * 2;
+    const rr = size * (1 + rand(-wobble, wobble));
+    // Un peu plus pointue côté centre (la goutte « vient » de l'impact).
+    const back = Math.cos(b) < 0 ? 1 + 0.25 * (stretch - 1) : 1;
+    const lx = Math.cos(b) * rr * stretch * back;
+    const ly = Math.sin(b) * rr;
+    pts.push([cx + lx * ca - ly * sa, cy + lx * sa + ly * ca]);
   }
-  return smoothClosedPath(pts, 0.7);
+  return smoothClosedPath(clockwise(pts), 1);
+}
+
+/** Bande le long d'une ligne centrale, de largeur variable, bouts arrondis. */
+function stroke(center: Point[], widths: number[]): string {
+  const left: Point[] = [];
+  const right: Point[] = [];
+  for (let i = 0; i < center.length; i++) {
+    const [x0, y0] = center[Math.max(0, i - 1)];
+    const [x1, y1] = center[Math.min(center.length - 1, i + 1)];
+    const len = Math.hypot(x1 - x0, y1 - y0) || 1;
+    const nx = -(y1 - y0) / len;
+    const ny = (x1 - x0) / len;
+    const w = widths[i] / 2;
+    left.push([center[i][0] + nx * w, center[i][1] + ny * w]);
+    right.push([center[i][0] - nx * w, center[i][1] - ny * w]);
+  }
+  const [ex, ey] = center[center.length - 1];
+  const [sx, sy] = center[0];
+  const end = widths[widths.length - 1] / 2;
+  const start = widths[0] / 2;
+  const outline = [...left, ...right.reverse()];
+  return (
+    polygonPath(clockwise(outline)) + ' ' + circlePath(ex, ey, end) + ' ' + circlePath(sx, sy, start)
+  );
 }
 
 function makeSplat(x: number, y: number, r: number, direction: number | null): Splat {
-  const R = r * 1.75;
+  const R = r * 1.6;
   const dir = direction ?? rand(0, Math.PI * 2);
   const aimed = (spread: number, bias: number) =>
     Math.random() < bias ? dir + randn() * spread : rand(0, Math.PI * 2);
 
-  // Impact : bord organique festonné, légèrement étiré dans le sens du coup.
+  // Masse principale : grands lobes doux + petites ondulations, étirée dans le sens du coup.
   const ph = Array.from({ length: 4 }, () => rand(0, 6.3));
+  const amp = [rand(0.06, 0.12), rand(0.05, 0.1), rand(0.02, 0.04), rand(0.01, 0.025)];
   const corePts: Point[] = [];
-  const count = 64;
+  const count = 72;
   for (let i = 0; i < count; i++) {
     const a = (i / count) * Math.PI * 2;
-    const toward = Math.cos(a - dir);
     const k =
-      0.95 +
-      0.1 * toward +
-      0.07 * Math.sin(3 * a + ph[0]) +
-      0.05 * Math.sin(5 * a + ph[1]) +
-      0.035 * Math.sin(11 * a + ph[2]) +
-      0.02 * Math.sin(19 * a + ph[3]) +
-      rand(-0.02, 0.02);
+      0.92 +
+      0.12 * Math.cos(a - dir) +
+      amp[0] * Math.sin(2 * a + ph[0]) +
+      amp[1] * Math.sin(3 * a + ph[1]) +
+      amp[2] * Math.sin(7 * a + ph[2]) +
+      amp[3] * Math.sin(13 * a + ph[3]);
     corePts.push([Math.cos(a) * R * k, Math.sin(a) * R * k]);
   }
-  const core = smoothClosedPath(corePts, 0.9);
+  let core = smoothClosedPath(corePts, 1) + ' ';
 
-  // Jets : naissent à l'intérieur de l'impact (raccord arrondi, aucun trou),
-  // s'affinent en se courbant un peu et finissent en pointe.
-  let spines = '';
-  const tips: Array<{ a: number; d: number; head: number }> = [];
-  const spineCount = Math.round(rand(12, 19));
-  for (let i = 0; i < spineCount; i++) {
-    const a = aimed(0.75, 0.5);
+  // Doigts : bras épais qui sortent de la masse, s'affinent un peu puis
+  // s'arrondissent au bout (parfois en léger renflement), plus longs vers le coup.
+  const fingers = Math.round(rand(6, 9));
+  const fingerTips: Array<{ a: number; d: number; w: number }> = [];
+  for (let i = 0; i < fingers; i++) {
+    const a = aimed(0.9, 0.55) + randn() * 0.05;
     const toward = Math.max(0, Math.cos(a - dir));
-    const len = R * rand(0.45, 1.5) * (1 + toward * 0.9);
-    const w0 = R * rand(0.12, 0.26);
-    const bend = rand(-0.12, 0.12);
-    const start = R * 0.45;
-    const edge = R * 0.85;
-    const end = edge + len;
-    const steps = 24;
-    const left: Point[] = [];
-    const right: Point[] = [];
-    let endX = 0;
-    let endY = 0;
-    for (let s2 = 0; s2 <= steps; s2++) {
-      const d = start + ((end - start) * s2) / steps;
-      const u = Math.min(1, Math.max(0, (d - edge) / len));
-      const ang = a + bend * u * u;
-      const cx = Math.cos(ang) * d;
-      const cy = Math.sin(ang) * d;
-      // Corps qui s'effile jusqu'à la pointe + évasement au raccord avec l'impact.
-      const w = w0 * Math.pow(1 - u, 1.7) + w0 * 0.9 * Math.exp(-Math.max(0, d - edge) / (R * 0.12));
-      const nx = -Math.sin(ang);
-      const ny = Math.cos(ang);
-      left.push([cx + nx * w * 0.5, cy + ny * w * 0.5]);
-      right.push([cx - nx * w * 0.5, cy - ny * w * 0.5]);
-      endX = cx;
-      endY = cy;
+    const len = R * (0.08 + Math.pow(Math.random(), 1.6) * 0.55) * (1 + toward * 0.9);
+    const w0 = R * rand(0.28, 0.48);
+    const tip = w0 * rand(0.38, 0.6);
+    const bulb = Math.random() < 0.65 ? rand(1.2, 1.6) : 1;
+    const bend = rand(-0.25, 0.25);
+    const start = R * 0.55;
+    const pts: Point[] = [];
+    const widths: number[] = [];
+    const steps = 14;
+    for (let k = 0; k <= steps; k++) {
+      const u = k / steps;
+      const d = start + (R * 0.4 + len) * u;
+      const ang = a + bend * u * u * 0.5;
+      pts.push([Math.cos(ang) * d, Math.sin(ang) * d]);
+      const neck = (1 - 0.15 * Math.sin(Math.PI * Math.min(1, u * 1.15))) * (1 + 0.9 * Math.pow(Math.max(0, 1 - u * 2.8), 2));
+      widths.push((w0 + (tip - w0) * Math.pow(u, 0.8)) * neck * (u > 0.75 ? 1 + (bulb - 1) * Math.sin(((u - 0.75) / 0.25) * Math.PI * 0.5) : 1));
     }
-    spines += polygonPath([...left, ...right.reverse()]) + ' ';
-    tips.push({ a: a + bend, d: Math.hypot(endX, endY), head: R * rand(0.03, 0.06) });
+    core += stroke(pts, widths) + ' ';
+    fingerTips.push({ a: a + bend * 0.5, d: start + R * 0.4 + len, w: widths[steps] });
+  }
+
+  // Satellites : gouttes rondes collées ou presque, dans le prolongement de doigts.
+  let spines = '';
+  for (const tip of fingerTips) {
+    if (Math.random() < 0.35) continue;
+    let d = tip.d + tip.w * rand(0.9, 1.6);
+    let size = tip.w * rand(0.35, 0.55);
+    const n = Math.round(rand(1, 3));
+    for (let k = 0; k < n; k++) {
+      const a = tip.a + randn() * 0.06;
+      spines += blob(Math.cos(a) * d, Math.sin(a) * d, size, a, rand(1, 1.5)) + ' ';
+      d += size * rand(2.4, 4);
+      size *= rand(0.5, 0.75);
+    }
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = rand(0, Math.PI * 2);
+    const d = R * rand(1.05, 1.5);
+    spines += blob(Math.cos(a) * d, Math.sin(a) * d, R * rand(0.05, 0.13), a, rand(1, 1.4)) + ' ';
+  }
+
+  // Coulures : l'encre dégouline vers le bas, bout arrondi, parfois une goutte
+  // détachée en dessous (comme les coulures blanches de Sin City).
+  let drips = '';
+  const dripCount = Math.round(rand(2, 5));
+  for (let i = 0; i < dripCount; i++) {
+    const a = Math.PI / 2 + rand(-0.75, 0.75);
+    const x0 = Math.cos(a) * R * 0.75;
+    const y0 = Math.sin(a) * R * 0.6;
+    const w = R * rand(0.09, 0.18);
+    const len = R * rand(0.7, 2.4);
+    const pts: Point[] = [];
+    const widths: number[] = [];
+    const sway = rand(-0.04, 0.04) * R;
+    for (let k = 0; k <= 12; k++) {
+      const u = k / 12;
+      pts.push([x0 + sway * Math.sin(u * Math.PI), y0 + len * u]);
+      widths.push(w * (1 - 0.3 * u) * (u > 0.9 ? 1.25 : 1) * rand(0.94, 1.06));
+    }
+    drips += stroke(pts, widths) + ' ';
+    if (Math.random() < 0.6) {
+      let dy = y0 + len + w * rand(1.4, 2.4);
+      let size = w * rand(0.4, 0.55);
+      const n = Math.round(rand(1, 3));
+      for (let k = 0; k < n; k++) {
+        drips += blob(x0, dy, size, Math.PI / 2, rand(1.3, 1.8), 0.05) + ' ';
+        dy += size * rand(3, 6);
+        size *= rand(0.6, 0.85);
+      }
+    }
   }
 
   const bands = ['', '', '', ''];
-  const bandOf = (dist: number) => Math.max(0, Math.min(3, Math.floor(((dist / R - 1) / 4.2) * 4)));
+  const bandOf = (dist: number) => Math.max(0, Math.min(3, Math.floor(((dist / R - 1) / 4) * 4)));
 
-  // Chapelets : gouttes de plus en plus petites dans le prolongement de certains jets.
-  for (const tip of tips) {
-    if (Math.random() < 0.4) continue;
-    let d = tip.d + tip.head * rand(2, 3.5);
-    let size = tip.head * rand(0.55, 0.8);
-    const beads = Math.round(rand(2, 6));
-    for (let k = 0; k < beads && size > R * 0.008; k++) {
-      const a = tip.a + randn() * 0.03;
-      bands[bandOf(d)] += teardrop(Math.cos(a) * d, Math.sin(a) * d, a, size, size * rand(1.2, 2)) + ' ';
-      d += size * rand(3, 6) + R * rand(0.05, 0.2);
-      size *= rand(0.55, 0.8);
-    }
-  }
-
-  // Larmes isolées, tête vers l'extérieur.
-  for (let i = 0; i < 16; i++) {
-    const a = aimed(0.8, 0.55);
-    const d = R * rand(1.5, 3.8);
-    const head = R * rand(0.035, 0.09) * (1.3 - (d / R - 1.5) / 3.8);
-    bands[bandOf(d)] += teardrop(Math.cos(a) * d, Math.sin(a) * d, a, head, head * rand(1.6, 3.4)) + ' ';
-  }
-
-  // Petites taches rondes et irrégulières près de l'impact.
-  for (let i = 0; i < 14; i++) {
-    const a = rand(0, Math.PI * 2);
-    const d = R * rand(1.05, 1.6);
-    const sr = R * rand(0.04, 0.14);
-    const cx = Math.cos(a) * d;
-    const cy = Math.sin(a) * d;
-    const pts: Point[] = Array.from({ length: 9 }, (_, k) => {
-      const b = (k / 9) * Math.PI * 2;
-      const rr = sr * rand(0.8, 1.15);
-      return [cx + Math.cos(b) * rr, cy + Math.sin(b) * rr];
-    });
-    bands[0] += smoothClosedPath(pts) + ' ';
-  }
-
-  // Bruine : micro-gouttes, plus denses dans le sens du coup.
-  for (let i = 0; i < 90; i++) {
+  // Gouttes projetées : tailles variées, ovales étirés vers l'extérieur, plus
+  // nombreuses et plus loin dans le sens du coup.
+  for (let i = 0; i < 34; i++) {
     const a = aimed(0.7, 0.6);
-    const d = R * (1.2 + Math.pow(Math.random(), 1.4) * 4);
-    const size = Math.max(0.7, R * rand(0.006, 0.03) * (1.4 - (d / R - 1.2) / 4));
-    const stretchK = rand(1, 1.7);
-    const cx = Math.cos(a) * d;
-    const cy = Math.sin(a) * d;
-    if (stretchK > 1.3) bands[bandOf(d)] += teardrop(cx, cy, a, size, size * stretchK * 1.6) + ' ';
-    else bands[bandOf(d)] += circlePath(cx, cy, size) + ' ';
+    const toward = Math.max(0, Math.cos(a - dir));
+    const d = R * (1.4 + Math.pow(Math.random(), 1.3) * (2.2 + toward * 1.8));
+    const size = R * rand(0.02, 0.075) * (Math.random() < 0.12 ? 1.8 : 1);
+    bands[bandOf(d)] += blob(Math.cos(a) * d, Math.sin(a) * d, size, a, rand(1, 2.2)) + ' ';
   }
 
-  return { x, y, core, spines, flecks: bands };
+  // Bruine : fines gouttelettes autour de l'impact.
+  for (let i = 0; i < 70; i++) {
+    const a = aimed(0.9, 0.5);
+    const d = R * (1.2 + Math.pow(Math.random(), 1.2) * 3.6);
+    const size = Math.max(0.7, R * rand(0.006, 0.02));
+    bands[bandOf(d)] += circlePath(Math.cos(a) * d, Math.sin(a) * d, size) + ' ';
+  }
+
+  return { x, y, core, spines, flecks: bands, drips };
 }
 
 // ---------- Rendu de l'éclaboussure (animée sur l'accueil, figée sur les autres pages) ----------
@@ -256,10 +300,20 @@ export function SplatShapes({ splat, animated }: { splat: Splat; animated: boole
       ))}
       <motion.path
         d={splat.spines}
-        initial={from(0.2)}
+        initial={from(0.3)}
         animate={{ scale: 1 }}
         transition={{ duration: 0.24, ease: [0.1, 0.95, 0.3, 1.08] }}
       />
+      {/* Coulures : elles descendent lentement depuis la tache. */}
+      {splat.drips && (
+        <motion.path
+          d={splat.drips}
+          style={{ transformBox: 'fill-box', transformOrigin: '50% 0%' }}
+          initial={animated ? { scaleY: 0 } : false}
+          animate={{ scaleY: 1 }}
+          transition={{ duration: 1.1, delay: 0.15, ease: [0.3, 0.6, 0.4, 1] }}
+        />
+      )}
       {/* Impact : la tache dépasse sa taille puis se pose. */}
       <motion.path
         d={splat.core}
