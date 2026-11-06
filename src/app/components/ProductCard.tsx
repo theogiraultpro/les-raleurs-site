@@ -102,7 +102,7 @@ export function ProductCard({ id, name, price, image, category, onAddToCart, onT
             }}
           >
             <img
-              {...responsiveImage(image, '(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw', 1280)}
+              {...responsiveImage(image, '(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw', 960)}
               alt={name}
               loading="lazy"
               className="w-full h-full object-cover"
