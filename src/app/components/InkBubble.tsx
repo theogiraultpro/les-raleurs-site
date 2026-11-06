@@ -3,7 +3,7 @@
 // en gouttes qui glissent les unes vers les autres et fusionnent, comme du mercure.
 // Un clic (ou Entrée) la fait éclater en éclaboussure d'encre (contraste façon
 // Sin City), puis on part vers la galerie.
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 
 const INK = '#000000';
@@ -94,8 +94,6 @@ export interface Splat {
   spines: string;
   /** Gouttes projetées et bruine, regroupées par distance pour l'animation. */
   flecks: string[];
-  /** Coulures verticales (façon Sin City) ; absent des anciennes taches enregistrées. */
-  drips?: string;
 }
 
 /** Tous les contours dans le même sens, sinon leurs recouvrements se trouent. */
@@ -182,12 +180,12 @@ function makeSplat(x: number, y: number, r: number, direction: number | null): S
 
   // Doigts : bras épais qui sortent de la masse, s'affinent un peu puis
   // s'arrondissent au bout (parfois en léger renflement), plus longs vers le coup.
-  const fingers = Math.round(rand(6, 9));
+  const fingers = Math.round(rand(10, 14));
   const fingerTips: Array<{ a: number; d: number; w: number }> = [];
   for (let i = 0; i < fingers; i++) {
-    const a = aimed(0.9, 0.55) + randn() * 0.05;
+    const a = (i / fingers) * Math.PI * 2 + rand(-0.25, 0.25);
     const toward = Math.max(0, Math.cos(a - dir));
-    const len = R * (0.08 + Math.pow(Math.random(), 1.6) * 0.55) * (1 + toward * 0.9);
+    const len = R * (0.15 + Math.pow(Math.random(), 1.3) * 0.75) * (1 + toward * 0.7);
     const w0 = R * rand(0.28, 0.48);
     const tip = w0 * rand(0.38, 0.6);
     const bulb = Math.random() < 0.65 ? rand(1.2, 1.6) : 1;
@@ -211,7 +209,7 @@ function makeSplat(x: number, y: number, r: number, direction: number | null): S
   // Satellites : gouttes rondes collées ou presque, dans le prolongement de doigts.
   let spines = '';
   for (const tip of fingerTips) {
-    if (Math.random() < 0.35) continue;
+    if (Math.random() < 0.2) continue;
     let d = tip.d + tip.w * rand(0.9, 1.6);
     let size = tip.w * rand(0.35, 0.55);
     const n = Math.round(rand(1, 3));
@@ -228,44 +226,13 @@ function makeSplat(x: number, y: number, r: number, direction: number | null): S
     spines += blob(Math.cos(a) * d, Math.sin(a) * d, R * rand(0.05, 0.13), a, rand(1, 1.4)) + ' ';
   }
 
-  // Coulures : l'encre dégouline vers le bas, bout arrondi, parfois une goutte
-  // détachée en dessous (comme les coulures blanches de Sin City).
-  let drips = '';
-  const dripCount = Math.round(rand(2, 5));
-  for (let i = 0; i < dripCount; i++) {
-    const a = Math.PI / 2 + rand(-0.75, 0.75);
-    const x0 = Math.cos(a) * R * 0.75;
-    const y0 = Math.sin(a) * R * 0.6;
-    const w = R * rand(0.09, 0.18);
-    const len = R * rand(0.7, 2.4);
-    const pts: Point[] = [];
-    const widths: number[] = [];
-    const sway = rand(-0.04, 0.04) * R;
-    for (let k = 0; k <= 12; k++) {
-      const u = k / 12;
-      pts.push([x0 + sway * Math.sin(u * Math.PI), y0 + len * u]);
-      widths.push(w * (1 - 0.3 * u) * (u > 0.9 ? 1.25 : 1) * rand(0.94, 1.06));
-    }
-    drips += stroke(pts, widths) + ' ';
-    if (Math.random() < 0.6) {
-      let dy = y0 + len + w * rand(1.4, 2.4);
-      let size = w * rand(0.4, 0.55);
-      const n = Math.round(rand(1, 3));
-      for (let k = 0; k < n; k++) {
-        drips += blob(x0, dy, size, Math.PI / 2, rand(1.3, 1.8), 0.05) + ' ';
-        dy += size * rand(3, 6);
-        size *= rand(0.6, 0.85);
-      }
-    }
-  }
-
   const bands = ['', '', '', ''];
   const bandOf = (dist: number) => Math.max(0, Math.min(3, Math.floor(((dist / R - 1) / 4) * 4)));
 
   // Gouttes projetées : tailles variées, ovales étirés vers l'extérieur, plus
   // nombreuses et plus loin dans le sens du coup.
-  for (let i = 0; i < 34; i++) {
-    const a = aimed(0.7, 0.6);
+  for (let i = 0; i < 48; i++) {
+    const a = aimed(0.7, 0.45);
     const toward = Math.max(0, Math.cos(a - dir));
     const d = R * (1.4 + Math.pow(Math.random(), 1.3) * (2.2 + toward * 1.8));
     const size = R * rand(0.02, 0.075) * (Math.random() < 0.12 ? 1.8 : 1);
@@ -280,13 +247,12 @@ function makeSplat(x: number, y: number, r: number, direction: number | null): S
     bands[bandOf(d)] += circlePath(Math.cos(a) * d, Math.sin(a) * d, size) + ' ';
   }
 
-  return { x, y, core, spines, flecks: bands, drips };
+  return { x, y, core, spines, flecks: bands };
 }
 
 // ---------- Rendu de l'éclaboussure (animée sur l'accueil, figée sur les autres pages) ----------
 
 export function SplatShapes({ splat, animated }: { splat: Splat; animated: boolean }) {
-  const clipId = `drips-${useId().replace(/:/g, '')}`;
   const from = (scale: number) => (animated ? { scale } : false);
   return (
     <g fill={INK}>
@@ -305,25 +271,6 @@ export function SplatShapes({ splat, animated }: { splat: Splat; animated: boole
         animate={{ scale: 1 }}
         transition={{ duration: 0.24, ease: [0.1, 0.95, 0.3, 1.08] }}
       />
-      {/* Coulures : elles descendent depuis la tache (révélées de haut en bas, sans écrasement). */}
-      {splat.drips &&
-        (animated ? (
-          <>
-            <clipPath id={clipId}>
-              <motion.rect
-                x={-10000}
-                y={0}
-                width={20000}
-                initial={{ height: 0 }}
-                animate={{ height: 4000 }}
-                transition={{ duration: 6, delay: 0.12, ease: [0.25, 0.1, 0.25, 1] }}
-              />
-            </clipPath>
-            <path d={splat.drips} clipPath={`url(#${clipId})`} />
-          </>
-        ) : (
-          <path d={splat.drips} />
-        ))}
       {/* Impact : la tache dépasse sa taille puis se pose. */}
       <motion.path
         d={splat.core}
