@@ -49,7 +49,7 @@ function bubblePath(r: number, t: number, wobble: number, phases: number[], offs
 
 // ---------- Tache d'encre, style comics ----------
 
-interface Splat {
+export interface Splat {
   x: number;
   y: number;
   core: string;
@@ -146,27 +146,89 @@ function makeSplat(x: number, y: number, r: number): Splat {
   return { x, y, core: smoothClosedPath(corePoints), arms, tears, dots };
 }
 
+// ---------- Rendu de la tache (animée sur l'accueil, figée sur les autres pages) ----------
+
+export function SplatShapes({ splat, animated }: { splat: Splat; animated: boolean }) {
+  const anim = animated;
+  return (
+    <g fill={INK}>
+      {/* Impact « pop » : la tache dépasse sa taille puis rebondit. */}
+      <motion.g
+        initial={anim ? { scale: 0.2 } : false}
+        animate={{ scale: 1 }}
+        transition={{ type: 'spring', stiffness: 700, damping: 13, mass: 0.7 }}
+      >
+        <path d={splat.core} />
+        {splat.arms.map((arm, i) => (
+          <motion.path
+            key={`a${i}`}
+            d={arm.d}
+            initial={anim ? { scale: 0.35 } : false}
+            animate={{ scale: 1 }}
+            transition={{ delay: arm.delay, type: 'spring', stiffness: 520, damping: 12 }}
+          />
+        ))}
+      </motion.g>
+      {splat.tears.map((tear, i) => (
+        <motion.g
+          key={`t${i}`}
+          initial={anim ? { x: 0, y: 0, scale: 0.3 } : false}
+          animate={{ x: tear.x, y: tear.y, scale: 1 }}
+          transition={{ delay: tear.delay, duration: 0.38, ease: [0.15, 0.85, 0.3, 1.15] }}
+        >
+          <path d={tear.d} transform={`rotate(${tear.angle.toFixed(1)})`} />
+        </motion.g>
+      ))}
+      {splat.dots.map((dot, i) => (
+        <motion.circle
+          key={`p${i}`}
+          r={dot.r}
+          initial={anim ? { cx: 0, cy: 0, scale: 0 } : false}
+          animate={{ cx: dot.x, cy: dot.y, scale: 1 }}
+          transition={{ delay: dot.delay, duration: 0.42, ease: [0.15, 0.85, 0.3, 1.1] }}
+        />
+      ))}
+    </g>
+  );
+}
+
 // ---------- Composant ----------
 
 interface InkBubbleProps {
+  /** Appelé dès l'éclatement, avec la tache créée. */
+  onSplat?: (splat: Splat) => void;
   /** Appelé quand la tache a fini de s'étaler. */
   onBurst: () => void;
 }
 
-export function InkBubble({ onBurst }: InkBubbleProps) {
+/** Bulle coupée en deux : deux moitiés qui s'écartent puis se rattirent. */
+interface Split {
+  // position de la moitié A par rapport au centre (B est symétrique)
+  dx: number;
+  dy: number;
+  vx: number;
+  vy: number;
+  age: number;
+}
+
+export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
   const reducedMotion = useReducedMotion() ?? false;
   const buttonRef = useRef<HTMLButtonElement>(null);
   const bodyRef = useRef<SVGGElement>(null);
   const shapeRef = useRef<SVGPathElement>(null);
+  const halfARef = useRef<SVGPathElement>(null);
+  const halfBRef = useRef<SVGPathElement>(null);
   const position = useRef({ x: 0, y: 0 });
   const pointer = useRef({ x: -9999, y: -9999, vx: 0, vy: 0, t: 0 });
   const hovered = useRef(false);
   const burst = useRef(false);
+  const split = useRef<Split | null>(null);
   const [radius, setRadius] = useState(56);
   const [splat, setSplat] = useState<Splat | null>(null);
   const [visible, setVisible] = useState(false);
 
   const phases = useMemo(() => Array.from({ length: 6 }, () => Math.random() * Math.PI * 2), []);
+  const gooId = useMemo(() => `ink-goo-${Math.random().toString(36).slice(2, 8)}`, []);
 
   // Taille de la bulle selon l'écran.
   useEffect(() => {
@@ -201,7 +263,7 @@ export function InkBubble({ onBurst }: InkBubbleProps) {
     return () => window.removeEventListener('pointermove', onMove);
   }, []);
 
-  // Dérive lente, ondulation et déformation élastique, image par image.
+  // Dérive lente, ondulation, déformation élastique et coupure, image par image.
   useEffect(() => {
     let raf = 0;
     let clock = 0;
@@ -211,9 +273,11 @@ export function InkBubble({ onBurst }: InkBubbleProps) {
     let prev = { x: 0, y: 0 };
     let stretch = 0;
     let heading = 0;
+    let cooldown = 0;
     const offsets = new Float32Array(VERTICES);
     const velocities = new Float32Array(VERTICES);
     const smoothed = new Float32Array(VERTICES);
+    const halfR = radius * 0.72; // deux moitiés de même surface totale
 
     const frame = (now: number) => {
       const dt = Math.min(0.033, (now - last) / 1000);
@@ -223,14 +287,15 @@ export function InkBubble({ onBurst }: InkBubbleProps) {
       // Au survol, la bulle ralentit pour se laisser attraper.
       const speed = hovered.current ? 0.25 : 1;
       clock += dt * (reducedMotion ? 0 : speed);
-      wobble += ((hovered.current ? 1.2 : 1) - wobble) * Math.min(1, dt * 6);
-      ripple += dt * (reducedMotion ? 0 : hovered.current ? 2.4 : 1.6);
+      wobble += ((hovered.current ? 1.25 : 1) - wobble) * Math.min(1, dt * 6);
+      ripple += dt * (reducedMotion ? 0 : hovered.current ? 2.6 : 1.6);
+      cooldown = Math.max(0, cooldown - dt);
 
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const marginX = radius * 1.6;
-      const marginTop = radius * 1.6;
-      const marginBottom = radius * 1.6 + 70; // laisse le logo respirer
+      const marginX = radius * 1.8;
+      const marginTop = radius * 1.8;
+      const marginBottom = radius * 1.8 + 70; // laisse le logo respirer
       const ax = w / 2 - marginX;
       const ay = (h - marginTop - marginBottom) / 2;
       const cy = marginTop + ay;
@@ -250,7 +315,6 @@ export function InkBubble({ onBurst }: InkBubbleProps) {
       stretch += (Math.min(0.1, v / 900) - stretch) * Math.min(1, dt * 4);
       if (v > 4) heading = (Math.atan2(vy, vx) * 180) / Math.PI;
 
-      // ---- Déformation par la souris : plus elle va vite, plus la bulle se tord.
       if (!reducedMotion) {
         const p = pointer.current;
         // La vitesse retombe si la souris s'arrête.
@@ -261,41 +325,73 @@ export function InkBubble({ onBurst }: InkBubbleProps) {
         const dx = p.x - x;
         const dy = p.y - y;
         const dist = Math.hypot(dx, dy);
-        const reach = radius * 2.4;
-        const influence = Math.max(0, Math.min(1, (reach - dist) / (reach - radius * 0.6)));
         const mouseSpeed = Math.hypot(p.vx, p.vy);
-        // Poussée plus que proportionnelle à la vitesse : un passage rapide reste
-        // moins longtemps sur la bulle, il doit donc pousser beaucoup plus fort.
-        const force = influence * Math.min(Math.pow(mouseSpeed / 1000, 1.9), 12);
         const mdx = mouseSpeed > 1 ? p.vx / mouseSpeed : 0;
         const mdy = mouseSpeed > 1 ? p.vy / mouseSpeed : 0;
-        const cursorAngle = Math.atan2(dy, dx);
 
-        const stiffness = 170;
-        const damping = 9;
-        for (let i = 0; i < VERTICES; i++) {
-          const a = (i / VERTICES) * Math.PI * 2;
-          const ux = Math.cos(a);
-          const uy = Math.sin(a);
-          // L'encre est entraînée dans le sens du geste…
-          const align = ux * mdx + uy * mdy;
-          // …et tirée vers le curseur là où il la touche.
-          let diff = Math.abs(a - cursorAngle) % (Math.PI * 2);
-          if (diff > Math.PI) diff = Math.PI * 2 - diff;
-          const near = Math.exp(-(diff * diff) / 0.3);
-          const push = force * radius * (0.6 * align + 0.5 * near * Math.max(0.2, align + 0.6));
-          const accel = -stiffness * offsets[i] - damping * velocities[i] + push * 52;
-          velocities[i] += accel * dt;
-          offsets[i] += velocities[i] * dt;
+        // ---- Coupure : un geste vif qui traverse le cœur de la bulle la coupe en deux.
+        if (!split.current && cooldown === 0 && mouseSpeed > 1700 && dist < radius * 0.55 && now - p.t < 50) {
+          // Les moitiés partent de part et d'autre de la ligne de coupe.
+          const nx = -mdy;
+          const ny = mdx;
+          const kick = Math.min(1400, 350 + mouseSpeed * 0.25);
+          split.current = { dx: nx * radius * 0.25, dy: ny * radius * 0.25, vx: nx * kick, vy: ny * kick, age: 0 };
+          offsets.fill(0);
+          velocities.fill(0);
         }
-        // Tension de surface : chaque point est lissé avec ses voisins.
-        for (let i = 0; i < VERTICES; i++) {
-          const prevI = offsets[(i - 1 + VERTICES) % VERTICES];
-          const nextI = offsets[(i + 1) % VERTICES];
-          smoothed[i] = offsets[i] * 0.6 + (prevI + nextI) * 0.2;
-        }
-        for (let i = 0; i < VERTICES; i++) {
-          offsets[i] = Math.max(-radius * 0.5, Math.min(radius * 1.5, smoothed[i]));
+
+        const sp = split.current;
+        if (sp) {
+          // Les deux moitiés se rattirent comme deux gouttes d'un même liquide.
+          sp.age += dt;
+          const pull = 26;
+          const damp = 3.2;
+          sp.vx += (-pull * sp.dx - damp * sp.vx) * dt;
+          sp.vy += (-pull * sp.dy - damp * sp.vy) * dt;
+          sp.dx += sp.vx * dt;
+          sp.dy += sp.vy * dt;
+          const gap = Math.hypot(sp.dx, sp.dy);
+          // Elles se recollent quand elles sont revenues l'une sur l'autre.
+          if (sp.age > 0.35 && gap < radius * 0.12) {
+            split.current = null;
+            cooldown = 0.6;
+            // Petit tremblement au moment de la fusion.
+            for (let i = 0; i < VERTICES; i++) velocities[i] += radius * (Math.random() * 6 - 1.5);
+          }
+        } else {
+          // ---- Déformation : plus la souris va vite, plus la bulle se tord.
+          const reach = radius * 2.6;
+          const influence = Math.max(0, Math.min(1, (reach - dist) / (reach - radius * 0.6)));
+          // Poussée plus que proportionnelle à la vitesse : un passage rapide reste
+          // moins longtemps sur la bulle, il doit donc pousser beaucoup plus fort.
+          const force = influence * Math.min(Math.pow(mouseSpeed / 1000, 1.9), 14);
+          const cursorAngle = Math.atan2(dy, dx);
+          const stiffness = 150;
+          const damping = 8;
+          for (let i = 0; i < VERTICES; i++) {
+            const a = (i / VERTICES) * Math.PI * 2;
+            const ux = Math.cos(a);
+            const uy = Math.sin(a);
+            // L'encre est entraînée dans le sens du geste…
+            const align = ux * mdx + uy * mdy;
+            // …et tirée vers le curseur là où il la touche.
+            let diff = Math.abs(a - cursorAngle) % (Math.PI * 2);
+            if (diff > Math.PI) diff = Math.PI * 2 - diff;
+            const near = Math.exp(-(diff * diff) / 0.3);
+            const push = force * radius * (0.65 * align + 0.55 * near * Math.max(0.2, align + 0.6));
+            const accel = -stiffness * offsets[i] - damping * velocities[i] + push * 85;
+            velocities[i] += accel * dt;
+            offsets[i] += velocities[i] * dt;
+          }
+          // Tension de surface : chaque point est lissé avec ses voisins.
+          for (let i = 0; i < VERTICES; i++) {
+            const prevI = offsets[(i - 1 + VERTICES) % VERTICES];
+            const nextI = offsets[(i + 1) % VERTICES];
+            smoothed[i] = offsets[i] * 0.6 + (prevI + nextI) * 0.2;
+          }
+          for (let i = 0; i < VERTICES; i++) {
+            offsets[i] = Math.max(-radius * 0.6, Math.min(radius * 1.9, smoothed[i]));
+          }
         }
       }
 
@@ -305,68 +401,52 @@ export function InkBubble({ onBurst }: InkBubbleProps) {
         'transform',
         `rotate(${heading.toFixed(1)}) scale(${(1 + stretch).toFixed(3)} ${(1 - stretch * 0.7).toFixed(3)}) rotate(${(-heading).toFixed(1)})`,
       );
-      shapeRef.current?.setAttribute('d', bubblePath(radius, ripple, wobble, phases, offsets));
+      const sp = split.current;
+      if (sp) {
+        shapeRef.current?.setAttribute('d', '');
+        halfARef.current?.setAttribute('d', bubblePath(halfR, ripple * 1.4, 1.6, phases));
+        halfBRef.current?.setAttribute('d', bubblePath(halfR, ripple * 1.4 + 2, 1.6, phases));
+        halfARef.current?.setAttribute('transform', `translate(${sp.dx.toFixed(2)} ${sp.dy.toFixed(2)})`);
+        halfBRef.current?.setAttribute('transform', `translate(${(-sp.dx).toFixed(2)} ${(-sp.dy).toFixed(2)})`);
+      } else {
+        halfARef.current?.setAttribute('d', '');
+        halfBRef.current?.setAttribute('d', '');
+        shapeRef.current?.setAttribute('d', bubblePath(radius, ripple, wobble, phases, offsets));
+      }
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
   }, [radius, phases, reducedMotion]);
 
-  const explode = () => {
+  const explode = (event: React.MouseEvent) => {
     if (burst.current) return;
     burst.current = true;
     if ('vibrate' in navigator) navigator.vibrate?.(18);
-    const { x, y } = position.current;
+    // À l'endroit du clic (ou au centre de la bulle au clavier).
+    const fromPointer = event.detail > 0;
+    const x = fromPointer ? event.clientX : position.current.x;
+    const y = fromPointer ? event.clientY : position.current.y;
     // Petit gonflement avant d'éclater.
     bodyRef.current?.setAttribute('transform', 'scale(1.14)');
-    window.setTimeout(() => setSplat(makeSplat(x, y, radius)), reducedMotion ? 0 : 90);
+    window.setTimeout(() => {
+      const created = makeSplat(x, y, radius);
+      setSplat(created);
+      onSplat?.(created);
+    }, reducedMotion ? 0 : 90);
     window.setTimeout(onBurst, reducedMotion ? 500 : 1150);
   };
 
   const size = radius * 3;
+  const area = radius * 8;
 
   return (
     <>
       {/* Tache d'encre style comics (dessin vectoriel : net à toutes les tailles) */}
       {splat && (
         <svg className="pointer-events-none fixed inset-0 h-full w-full" aria-hidden="true" shapeRendering="geometricPrecision">
-          <g transform={`translate(${splat.x} ${splat.y})`} fill={INK}>
-            {/* Impact « pop » : la tache dépasse sa taille puis rebondit. */}
-            <motion.g
-              initial={reducedMotion ? false : { scale: 0.2 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 700, damping: 13, mass: 0.7 }}
-            >
-              <path d={splat.core} />
-              {splat.arms.map((arm, i) => (
-                <motion.path
-                  key={`a${i}`}
-                  d={arm.d}
-                  initial={reducedMotion ? false : { scale: 0.35 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: arm.delay, type: 'spring', stiffness: 520, damping: 12 }}
-                />
-              ))}
-            </motion.g>
-            {splat.tears.map((tear, i) => (
-              <motion.g
-                key={`t${i}`}
-                initial={reducedMotion ? false : { x: 0, y: 0, scale: 0.3 }}
-                animate={{ x: tear.x, y: tear.y, scale: 1 }}
-                transition={{ delay: tear.delay, duration: 0.38, ease: [0.15, 0.85, 0.3, 1.15] }}
-              >
-                <path d={tear.d} transform={`rotate(${tear.angle.toFixed(1)})`} />
-              </motion.g>
-            ))}
-            {splat.dots.map((dot, i) => (
-              <motion.circle
-                key={`p${i}`}
-                r={dot.r}
-                initial={reducedMotion ? false : { cx: 0, cy: 0, scale: 0 }}
-                animate={{ cx: dot.x, cy: dot.y, scale: 1 }}
-                transition={{ delay: dot.delay, duration: 0.42, ease: [0.15, 0.85, 0.3, 1.1] }}
-              />
-            ))}
+          <g transform={`translate(${splat.x} ${splat.y})`}>
+            <SplatShapes splat={splat} animated={!reducedMotion} />
           </g>
         </svg>
       )}
@@ -377,6 +457,7 @@ export function InkBubble({ onBurst }: InkBubbleProps) {
           ref={buttonRef}
           type="button"
           aria-label="Entrer dans la galerie"
+          data-cursor-plain
           onClick={explode}
           onPointerEnter={() => (hovered.current = true)}
           onPointerLeave={() => (hovered.current = false)}
@@ -394,8 +475,27 @@ export function InkBubble({ onBurst }: InkBubbleProps) {
             transition={{ type: 'spring', stiffness: 170, damping: 11, mass: 0.9 }}
             style={{ overflow: 'visible' }}
           >
-            <g ref={bodyRef}>
-              <path ref={shapeRef} d={bubblePath(radius, 0, 1, phases)} fill={INK} />
+            <defs>
+              {/* Fusion liquide : deux gouttes proches se relient par un pont d'encre. */}
+              <filter
+                id={gooId}
+                filterUnits="userSpaceOnUse"
+                x={-area}
+                y={-area}
+                width={area * 2}
+                height={area * 2}
+                colorInterpolationFilters="sRGB"
+              >
+                <feGaussianBlur in="SourceGraphic" stdDeviation={radius * 0.14} result="blur" />
+                <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 30 -13" />
+              </filter>
+            </defs>
+            <g filter={`url(#${gooId})`} fill={INK}>
+              <g ref={bodyRef}>
+                <path ref={shapeRef} d={bubblePath(radius, 0, 1, phases)} />
+              </g>
+              <path ref={halfARef} d="" />
+              <path ref={halfBRef} d="" />
             </g>
           </motion.svg>
         </button>

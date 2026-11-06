@@ -12,6 +12,9 @@ type CursorState = {
 const DEFAULT: CursorState = { size: 14, invert: false };
 
 function getElementCursorState(target: HTMLElement): CursorState {
+  // Éléments où le curseur garde sa taille normale (bulle d'encre de l'accueil)
+  if (target.closest?.('[data-cursor-plain]')) return DEFAULT;
+
   // Product cards — use the image inside for sizing, apply inversion on the whole card
   const card = target.closest('[data-cursor-card]') as HTMLElement | null;
   if (card) {

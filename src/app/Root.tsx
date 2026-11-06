@@ -5,6 +5,7 @@ import CustomCursor from './components/CustomCursor';
 import { Cart } from './components/Cart';
 import { Favorites } from './components/Favorites';
 import { Footer } from './components/Footer';
+import { PersistentStain } from './components/PersistentStain';
 import { itemKey, type ItemRef } from './content/pricing';
 
 /** Article du panier : la référence (œuvre + format ou visuel) fait foi, le prix n'est qu'indicatif. */
@@ -108,8 +109,10 @@ export default function Root() {
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-white cursor-none">
+    <div className="relative isolate min-h-screen bg-white cursor-none">
       <CustomCursor />
+      {/* TEST : la tache d'encre de l'accueil reste en fond sur les pages */}
+      {location.pathname !== '/' && <PersistentStain />}
       {location.pathname !== '/' && (
         <Header
           cartCount={totalItems}
