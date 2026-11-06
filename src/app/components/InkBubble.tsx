@@ -130,8 +130,16 @@ function blob(cx: number, cy: number, size: number, angle: number, stretch: numb
   return smoothClosedPath(clockwise(pts), 1);
 }
 
-/** Bande le long d'une ligne centrale, de largeur variable, bouts arrondis. */
-function stroke(center: Point[], widths: number[]): string {
+/** Écart d'angle ramené dans [-π, π]. */
+function angleGap(a: number, b: number): number {
+  let d = (a - b) % (Math.PI * 2);
+  if (d > Math.PI) d -= Math.PI * 2;
+  if (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
+/** Bande effilée le long d'une ligne centrale (largeur 0 = pointe). */
+function taper(center: Point[], widths: number[]): string {
   const left: Point[] = [];
   const right: Point[] = [];
   for (let i = 0; i < center.length; i++) {
@@ -144,107 +152,191 @@ function stroke(center: Point[], widths: number[]): string {
     left.push([center[i][0] + nx * w, center[i][1] + ny * w]);
     right.push([center[i][0] - nx * w, center[i][1] - ny * w]);
   }
-  const [ex, ey] = center[center.length - 1];
-  const [sx, sy] = center[0];
-  const end = widths[widths.length - 1] / 2;
-  const start = widths[0] / 2;
-  const outline = [...left, ...right.reverse()];
-  return (
-    polygonPath(clockwise(outline)) + ' ' + circlePath(ex, ey, end) + ' ' + circlePath(sx, sy, start)
-  );
+  return smoothClosedPath(clockwise([...left, ...right.reverse()]), 0.6);
 }
 
+/**
+ * Tache d'encre posée : masse irrégulière aux grands lobes, bordée d'une
+ * couronne de fines pointes (plus longues dans le sens du coup).
+ */
+function crownBlob(cx: number, cy: number, rad: number, dir: number, spikeCount: number, spikeScale: number): string {
+  const lobes = [rand(0.04, 0.14), rand(0.03, 0.12), rand(0.015, 0.04), rand(0.01, 0.025)];
+  const ph = lobes.map(() => rand(0, 6.3));
+  const spikes = Array.from({ length: spikeCount }, () => {
+    const a = rand(0, Math.PI * 2);
+    const toward = Math.max(0, Math.cos(a - dir));
+    return {
+      a,
+      h: rad * spikeScale * Math.pow(Math.random(), 2.2) * rand(0.06, 0.3) * (1 + toward * 1.2),
+      w: rand(0.015, 0.05),
+    };
+  });
+  const n = 220;
+  const pts: Point[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    let rr =
+      rad *
+      (1 +
+        lobes[0] * Math.sin(2 * a + ph[0]) +
+        lobes[1] * Math.sin(3 * a + ph[1]) +
+        lobes[2] * Math.sin(7 * a + ph[2]) +
+        lobes[3] * Math.sin(17 * a + ph[3]));
+    for (const sp of spikes) {
+      const g = Math.abs(angleGap(a, sp.a)) / sp.w;
+      if (g < 1) rr += sp.h * Math.pow(1 - g, 2.4);
+    }
+    pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr]);
+  }
+  return smoothClosedPath(clockwise(pts), 0.5);
+}
+
+/** Éclat de projection : forme anguleuse étirée dans le sens du vol. */
+function shard(cx: number, cy: number, size: number, angle: number, stretch: number): string {
+  const sides = Math.round(rand(4, 7));
+  const spin = rand(-0.3, 0.3);
+  const ca = Math.cos(angle);
+  const sa = Math.sin(angle);
+  const pts: Point[] = [];
+  for (let k = 0; k < sides; k++) {
+    const b = spin + (k / sides) * Math.PI * 2;
+    const rr = size * rand(0.5, 1.2);
+    const lx = Math.cos(b) * rr * stretch;
+    const ly = Math.sin(b) * rr;
+    pts.push([cx + lx * ca - ly * sa, cy + lx * sa + ly * ca]);
+  }
+  return Math.random() < 0.6 ? polygonPath(clockwise(pts)) : smoothClosedPath(clockwise(pts), 0.4);
+}
+
+/**
+ * Éclaboussure tirée au hasard, inspirée de vraies taches d'encre : chaque
+ * éclatement est différent (une ou plusieurs gouttes fondues, couronne de
+ * pointes, jets effilés, longues traînées, nuée d'éclats dans le sens du coup).
+ */
 function makeSplat(x: number, y: number, r: number, direction: number | null): Splat {
-  const R = r * 1.6;
+  const R = r * 1.5;
   const dir = direction ?? rand(0, Math.PI * 2);
+  // Projection orientée (le plus souvent) ou éclatement tout autour.
+  const cone = Math.random() < (direction === null ? 0.45 : 0.75);
+  const energy = rand(0.7, 1.3);
+
+  // Masse : 1 à 3 gouttes fondues, alignées à peu près dans le sens du coup.
+  const roll = Math.random();
+  const drops = roll < 0.55 ? 1 : roll < 0.85 ? 2 : 3;
+  let core = crownBlob(0, 0, R * rand(0.82, 1), dir, Math.round(rand(26, 48)), energy) + ' ';
+  let along = 0;
+  for (let i = 1; i < drops; i++) {
+    const a = dir + randn() * 0.7 + (Math.random() < 0.3 ? Math.PI : 0);
+    along += R * rand(0.55, 0.95);
+    const rad = R * rand(0.4, 0.72);
+    core += crownBlob(Math.cos(a) * along, Math.sin(a) * along, rad, dir, Math.round(rand(14, 30)), energy) + ' ';
+  }
+
+  // Jets effilés qui sortent de la masse et finissent en pointe.
   const aimed = (spread: number, bias: number) =>
     Math.random() < bias ? dir + randn() * spread : rand(0, Math.PI * 2);
-
-  // Masse principale : grands lobes doux + petites ondulations, étirée dans le sens du coup.
-  const ph = Array.from({ length: 4 }, () => rand(0, 6.3));
-  const amp = [rand(0.06, 0.12), rand(0.05, 0.1), rand(0.02, 0.04), rand(0.01, 0.025)];
-  const corePts: Point[] = [];
-  const count = 72;
-  for (let i = 0; i < count; i++) {
-    const a = (i / count) * Math.PI * 2;
-    const k =
-      0.92 +
-      0.12 * Math.cos(a - dir) +
-      amp[0] * Math.sin(2 * a + ph[0]) +
-      amp[1] * Math.sin(3 * a + ph[1]) +
-      amp[2] * Math.sin(7 * a + ph[2]) +
-      amp[3] * Math.sin(13 * a + ph[3]);
-    corePts.push([Math.cos(a) * R * k, Math.sin(a) * R * k]);
-  }
-  let core = smoothClosedPath(corePts, 1) + ' ';
-
-  // Doigts : bras épais qui sortent de la masse, s'affinent un peu puis
-  // s'arrondissent au bout (parfois en léger renflement), plus longs vers le coup.
-  const fingers = Math.round(rand(10, 14));
-  const fingerTips: Array<{ a: number; d: number; w: number }> = [];
-  for (let i = 0; i < fingers; i++) {
-    const a = (i / fingers) * Math.PI * 2 + rand(-0.25, 0.25);
+  let spines = '';
+  const jets = Math.round(rand(3, 9) * energy);
+  for (let i = 0; i < jets; i++) {
+    const a = aimed(0.6, cone ? 0.7 : 0.3);
     const toward = Math.max(0, Math.cos(a - dir));
-    const len = R * (0.15 + Math.pow(Math.random(), 1.3) * 0.75) * (1 + toward * 0.7);
-    const w0 = R * rand(0.28, 0.48);
-    const tip = w0 * rand(0.38, 0.6);
-    const bulb = Math.random() < 0.65 ? rand(1.2, 1.6) : 1;
-    const bend = rand(-0.25, 0.25);
+    const len = R * rand(0.3, 1.1) * (1 + toward * 0.9) * energy;
+    const w0 = R * rand(0.06, 0.17);
+    const bend = rand(-0.18, 0.18);
     const start = R * 0.55;
     const pts: Point[] = [];
     const widths: number[] = [];
-    const steps = 14;
+    const steps = 18;
     for (let k = 0; k <= steps; k++) {
       const u = k / steps;
-      const d = start + (R * 0.4 + len) * u;
-      const ang = a + bend * u * u * 0.5;
+      const d = start + (R * 0.35 + len) * u;
+      const ang = a + bend * u * u;
       pts.push([Math.cos(ang) * d, Math.sin(ang) * d]);
-      const neck = (1 - 0.15 * Math.sin(Math.PI * Math.min(1, u * 1.15))) * (1 + 0.9 * Math.pow(Math.max(0, 1 - u * 2.8), 2));
-      widths.push((w0 + (tip - w0) * Math.pow(u, 0.8)) * neck * (u > 0.75 ? 1 + (bulb - 1) * Math.sin(((u - 0.75) / 0.25) * Math.PI * 0.5) : 1));
+      widths.push(w0 * Math.pow(1 - u, 1.25) * (1 + 1.2 * Math.pow(Math.max(0, 1 - u * 3), 2)));
     }
-    core += stroke(pts, widths) + ' ';
-    fingerTips.push({ a: a + bend * 0.5, d: start + R * 0.4 + len, w: widths[steps] });
+    core += taper(pts, widths) + ' ';
+    // Parfois, quelques éclats dans le prolongement du jet.
+    if (Math.random() < 0.4) {
+      const ang = a + bend;
+      let d = start + R * 0.35 + len + R * rand(0.08, 0.25);
+      const n = Math.round(rand(1, 4));
+      for (let k = 0; k < n; k++) {
+        const seg = R * rand(0.06, 0.25);
+        const mid = d + seg / 2;
+        spines += shard(Math.cos(ang) * mid, Math.sin(ang) * mid, w0 * rand(0.25, 0.45), ang, (seg / (w0 * 0.35)) * 0.5) + ' ';
+        d += seg + R * rand(0.06, 0.2);
+      }
+    }
   }
 
-  // Satellites : gouttes rondes collées ou presque, dans le prolongement de doigts.
-  let spines = '';
-  for (const tip of fingerTips) {
-    if (Math.random() < 0.2) continue;
-    let d = tip.d + tip.w * rand(0.9, 1.6);
-    let size = tip.w * rand(0.35, 0.55);
-    const n = Math.round(rand(1, 3));
+  // Longues traînées en pointillés dans l'axe du coup (une fois sur deux).
+  const streaks = Math.random() < 0.5 ? Math.round(rand(1, 3)) : 0;
+  for (let i = 0; i < streaks; i++) {
+    const a = dir + randn() * 0.22;
+    const ux = Math.cos(a);
+    const uy = Math.sin(a);
+    const lateral = rand(-0.5, 0.5) * R;
+    let d = R * rand(0.9, 1.3);
+    const end = d + R * rand(1.6, 3.4);
+    const w = R * rand(0.025, 0.06);
+    while (d < end) {
+      const seg = Math.min(end - d, R * rand(0.25, 1.1));
+      const pts: Point[] = [];
+      const widths: number[] = [];
+      for (let k = 0; k <= 8; k++) {
+        const u = k / 8;
+        const t = d + seg * u;
+        pts.push([ux * t - uy * lateral, uy * t + ux * lateral]);
+        widths.push(w * Math.sin(Math.PI * u) * rand(0.8, 1.15) * (1 - ((d - R) / (end - R)) * 0.5));
+      }
+      spines += taper(pts, widths) + ' ';
+      d += seg + R * rand(0.05, 0.25);
+    }
+    if (Math.random() < 0.5) {
+      spines += blob(ux * (end + R * 0.15) - uy * lateral, uy * (end + R * 0.15) + ux * lateral, w * rand(1.2, 2), a, rand(1.4, 2.2), 0.08) + ' ';
+    }
+  }
+
+  // Petites taches satellites (gouttes tombées à côté, avec leur couronne).
+  const satellites = Math.round(rand(0, 3));
+  for (let i = 0; i < satellites; i++) {
+    const a = aimed(0.9, 0.6);
+    const d = R * rand(1.4, 2.6);
+    spines += crownBlob(Math.cos(a) * d, Math.sin(a) * d, R * rand(0.1, 0.26), a, Math.round(rand(8, 18)), 0.9) + ' ';
+  }
+
+  // Chapelet de gouttes rondes qui s'éloigne en courbe (de temps en temps).
+  if (Math.random() < 0.35) {
+    let a = aimed(0.8, 0.6);
+    let d = R * rand(1.3, 1.8);
+    let size = R * rand(0.05, 0.1);
+    const n = Math.round(rand(4, 10));
+    const curve = rand(-0.06, 0.06);
     for (let k = 0; k < n; k++) {
-      const a = tip.a + randn() * 0.06;
-      spines += blob(Math.cos(a) * d, Math.sin(a) * d, size, a, rand(1, 1.5)) + ' ';
-      d += size * rand(2.4, 4);
-      size *= rand(0.5, 0.75);
+      spines += blob(Math.cos(a) * d, Math.sin(a) * d, size, a, rand(1, 1.3)) + ' ';
+      d += size * rand(1.8, 3);
+      a += curve;
+      size *= rand(0.8, 1.02);
     }
   }
-  for (let i = 0; i < 6; i++) {
-    const a = rand(0, Math.PI * 2);
-    const d = R * rand(1.05, 1.5);
-    spines += blob(Math.cos(a) * d, Math.sin(a) * d, R * rand(0.05, 0.13), a, rand(1, 1.4)) + ' ';
-  }
 
+  // Nuée d'éclats : dense dans le sens du coup, de toutes tailles, quelques grosses gouttes rondes.
   const bands = ['', '', '', ''];
-  const bandOf = (dist: number) => Math.max(0, Math.min(3, Math.floor(((dist / R - 1) / 4) * 4)));
-
-  // Gouttes projetées : tailles variées, ovales étirés vers l'extérieur, plus
-  // nombreuses et plus loin dans le sens du coup.
-  for (let i = 0; i < 48; i++) {
-    const a = aimed(0.7, 0.45);
+  const reach = cone ? 4.6 : 3.2;
+  const bandOf = (dist: number) => Math.max(0, Math.min(3, Math.floor(((dist / R - 1) / reach) * 4)));
+  const count = Math.round((cone ? rand(200, 300) : rand(110, 170)) * energy);
+  for (let i = 0; i < count; i++) {
+    const a = cone && Math.random() < 0.82 ? dir + randn() * rand(0.35, 0.7) : rand(0, Math.PI * 2);
     const toward = Math.max(0, Math.cos(a - dir));
-    const d = R * (1.4 + Math.pow(Math.random(), 1.3) * (2.2 + toward * 1.8));
-    const size = R * rand(0.02, 0.075) * (Math.random() < 0.12 ? 1.8 : 1);
-    bands[bandOf(d)] += blob(Math.cos(a) * d, Math.sin(a) * d, size, a, rand(1, 2.2)) + ' ';
-  }
-
-  // Bruine : fines gouttelettes autour de l'impact.
-  for (let i = 0; i < 70; i++) {
-    const a = aimed(0.9, 0.5);
-    const d = R * (1.2 + Math.pow(Math.random(), 1.2) * 3.6);
-    const size = Math.max(0.7, R * rand(0.006, 0.02));
-    bands[bandOf(d)] += circlePath(Math.cos(a) * d, Math.sin(a) * d, size) + ' ';
+    const d = R * (1.0 + Math.pow(Math.random(), 1.15) * reach * (cone ? 0.45 + toward * 0.55 : 1));
+    const fade = 1.3 - (d / R - 1) / reach;
+    let size = R * 0.011 * Math.pow(1 / Math.max(0.04, Math.random()), 0.75) * Math.max(0.3, fade);
+    size = Math.min(size, R * 0.1);
+    const cx = Math.cos(a) * d;
+    const cy = Math.sin(a) * d;
+    if (size < R * 0.006) bands[bandOf(d)] += circlePath(cx, cy, Math.max(0.6, size)) + ' ';
+    else if (size > R * 0.035 && Math.random() < 0.7) bands[bandOf(d)] += blob(cx, cy, size, a, rand(1, 1.3), 0.08) + ' ';
+    else bands[bandOf(d)] += shard(cx, cy, size, a, rand(1.3, 3.2)) + ' ';
   }
 
   return { x, y, core, spines, flecks: bands };
