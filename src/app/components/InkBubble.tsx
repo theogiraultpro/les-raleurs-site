@@ -1,9 +1,8 @@
-// Page d'accueil : une bulle d'encre noire vivante (inspiration Venom) flotte sur
-// la page blanche. Elle lance des tentacules au hasard, les tend vers la souris,
-// se déforme selon la vitesse du geste et peut être coupée en plusieurs morceaux
-// reliés par des filaments, qui se rattirent et fusionnent.
-// Un clic (ou Entrée) la fait éclater en éclaboussure façon Sin City, puis on part
-// vers la galerie.
+// Page d'accueil : une bulle d'encre noire flotte sur la page blanche et se déforme
+// selon la vitesse de la souris. Coupée d'un geste vif, elle se sépare en morceaux
+// qui se lancent des tentacules et se reconstituent (inspiration Venom).
+// Un clic (ou Entrée) la fait éclater en éclaboussure d'encre (contraste façon
+// Sin City), puis on part vers la galerie.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 
@@ -72,6 +71,14 @@ function bubblePath(
 }
 
 interface Tendril {
+  /** Morceau d'où part la tentacule, et celui qu'elle vise. */
+  src?: Piece;
+  dst?: Piece;
+  aim: number;
+  /** Point de départ (centre du morceau) et rayon de ce morceau. */
+  ox: number;
+  oy: number;
+  baseR: number;
   angle: number;
   length: number;
   width: number;
@@ -82,15 +89,16 @@ interface Tendril {
 }
 
 /** Tentacule d'encre : part du bord, s'affine et se tord (forme pleine). */
-function tendrilPath(td: Tendril, r: number, t: number): string {
+function tendrilPath(td: Tendril, t: number): string {
+  const r = td.baseR;
   const grow = Math.pow(Math.sin(Math.PI * Math.min(1, td.age / td.life)), 0.7);
   const L = td.length * grow;
   if (L < r * 0.05) return '';
   const steps = 10;
   const left: Point[] = [];
   const right: Point[] = [];
-  let px = Math.cos(td.angle) * r * 0.75;
-  let py = Math.sin(td.angle) * r * 0.75;
+  let px = td.ox + Math.cos(td.angle) * r * 0.7;
+  let py = td.oy + Math.sin(td.angle) * r * 0.7;
   for (let s = 0; s <= steps; s++) {
     const u = s / steps;
     const dir = td.angle + td.curl * Math.pow(u, 1.4) * Math.sin(t * 3.1 + td.phase + u * 2.5);
@@ -146,123 +154,158 @@ interface Piece {
   phase: number;
 }
 
-// ---------- Éclaboussure façon Sin City ----------
+// ---------- Éclaboussure (encre projetée, contraste façon Sin City) ----------
 
 export interface Splat {
   x: number;
   y: number;
-  /** Impact central, bords anguleux. */
+  /** Impact central aux bords festonnés. */
   core: string;
-  /** Gerbe de pointes fines en étoile. */
-  spikes: string;
-  /** Longues traînées dans la direction du coup. */
-  streaks: string;
-  /** Éclats irréguliers, regroupés par distance (pour l'animation). */
+  /** Jets effilés terminés par une goutte ronde. */
+  spines: string;
+  /** Gouttes (chapelets, larmes, bruine), regroupées par distance pour l'animation. */
   flecks: string[];
 }
 
+/** Cercle en chemin SVG. */
+function circlePath(cx: number, cy: number, r: number): string {
+  return `M${f2(cx - r)},${f2(cy)} a${f2(r)},${f2(r)} 0 1 0 ${f2(r * 2)},0 a${f2(r)},${f2(r)} 0 1 0 ${f2(-r * 2)},0 Z`;
+}
+
+/** Goutte en larme : tête ronde au bout, queue effilée vers l'impact. */
+function teardrop(cx: number, cy: number, angle: number, head: number, tail: number): string {
+  const ux = Math.cos(angle);
+  const uy = Math.sin(angle);
+  const px = -uy;
+  const py = ux;
+  const pts: Point[] = [];
+  // Queue (vers le centre) puis tour de la tête.
+  const tipX = cx - ux * tail;
+  const tipY = cy - uy * tail;
+  pts.push([tipX, tipY]);
+  for (let i = 0; i <= 10; i++) {
+    const t = -Math.PI / 2 + (i / 10) * Math.PI;
+    const k = Math.cos(t);
+    const along = Math.sin(t);
+    pts.push([cx + px * head * along * -1 + ux * head * k * 0.9, cy + py * head * along * -1 + uy * head * k * 0.9]);
+  }
+  return smoothClosedPath(pts, 0.7);
+}
+
 function makeSplat(x: number, y: number, r: number, direction: number | null): Splat {
-  const R = r * 1.8;
+  const R = r * 1.75;
   const dir = direction ?? rand(0, Math.PI * 2);
-  /** Angle tiré de préférence dans la direction du coup. */
   const aimed = (spread: number, bias: number) =>
     Math.random() < bias ? dir + randn() * spread : rand(0, Math.PI * 2);
 
-  // Impact : contour déchiqueté, mélange de creux et de pointes courtes.
+  // Impact : bord organique festonné, légèrement étiré dans le sens du coup.
+  const ph = Array.from({ length: 4 }, () => rand(0, 6.3));
   const corePts: Point[] = [];
-  const count = 44;
+  const count = 64;
   for (let i = 0; i < count; i++) {
-    const a = (i / count) * Math.PI * 2 + rand(-0.03, 0.03);
+    const a = (i / count) * Math.PI * 2;
     const toward = Math.cos(a - dir);
-    let k = rand(0.78, 1.08) + 0.12 * toward;
-    if (Math.random() < 0.18) k *= rand(0.7, 0.85); // entaille
-    if (Math.random() < 0.15) k *= rand(1.15, 1.4); // pointe
+    const k =
+      0.95 +
+      0.1 * toward +
+      0.07 * Math.sin(3 * a + ph[0]) +
+      0.05 * Math.sin(5 * a + ph[1]) +
+      0.035 * Math.sin(11 * a + ph[2]) +
+      0.02 * Math.sin(19 * a + ph[3]) +
+      rand(-0.02, 0.02);
     corePts.push([Math.cos(a) * R * k, Math.sin(a) * R * k]);
   }
-  const core = smoothClosedPath(corePts, 0.35);
+  const core = smoothClosedPath(corePts, 0.9);
 
-  // Pointes : fines, nombreuses, plus longues dans la direction du coup.
-  let spikes = '';
-  for (let i = 0; i < 30; i++) {
-    const a = aimed(0.7, 0.55);
+  // Jets : partent du bord, s'affinent en se courbant un peu, finissent en goutte.
+  let spines = '';
+  const tips: Array<{ a: number; d: number; head: number }> = [];
+  const spineCount = Math.round(rand(12, 19));
+  for (let i = 0; i < spineCount; i++) {
+    const a = aimed(0.75, 0.5);
     const toward = Math.max(0, Math.cos(a - dir));
-    const len = R * rand(0.35, 1.3) * (1 + toward * 1.2);
-    const w = R * rand(0.05, 0.17);
-    const base = R * 0.75;
-    const kink = rand(-0.25, 0.25) * w;
-    const ux = Math.cos(a);
-    const uy = Math.sin(a);
-    const px = -uy;
-    const py = ux;
-    const at = (d: number, side: number): Point => [ux * d + px * side, uy * d + py * side];
-    spikes +=
-      polygonPath([
-        at(base, -w / 2),
-        at(base + len * 0.55, -w * 0.22 + kink),
-        at(base + len, kink * 0.5),
-        at(base + len * 0.55, w * 0.22 + kink),
-        at(base, w / 2),
-      ]) + ' ';
-  }
-
-  // Traînées : longs éclats en pointillés dans l'axe du coup.
-  let streaks = '';
-  const streakCount = Math.round(rand(3, 6));
-  for (let i = 0; i < streakCount; i++) {
-    const a = dir + randn() * 0.16;
-    const ux = Math.cos(a);
-    const uy = Math.sin(a);
-    const px = -uy;
-    const py = ux;
-    const lateral = rand(-0.9, 0.9) * R;
-    let d = R * rand(1.1, 1.8);
-    const total = R * rand(1.6, 4.2);
-    const width = R * rand(0.06, 0.15);
-    const end = d + total;
-    while (d < end) {
-      const seg = Math.min(end - d, R * rand(0.35, 1.2));
-      const left: Point[] = [];
-      const right: Point[] = [];
-      const steps = 7;
-      for (let s = 0; s <= steps; s++) {
-        const u = s / steps;
-        const taper = Math.sin(Math.PI * u) * (1 - ((d - R) / (end - R)) * 0.6);
-        const w = width * taper * rand(0.7, 1.25);
-        const along = d + seg * u;
-        left.push([ux * along + px * (lateral + w / 2), uy * along + py * (lateral + w / 2)]);
-        right.push([ux * along + px * (lateral - w / 2), uy * along + py * (lateral - w / 2)]);
-      }
-      streaks += polygonPath([...left, ...right.reverse()]) + ' ';
-      d += seg + R * rand(0.08, 0.3);
+    const len = R * rand(0.45, 1.5) * (1 + toward * 0.9);
+    const w0 = R * rand(0.14, 0.3);
+    const neck = R * rand(0.025, 0.05);
+    const bend = rand(-0.12, 0.12);
+    const start = R * 0.72;
+    const steps = 16;
+    const left: Point[] = [];
+    const right: Point[] = [];
+    let endX = 0;
+    let endY = 0;
+    for (let s2 = 0; s2 <= steps; s2++) {
+      const u = s2 / steps;
+      const ang = a + bend * u * u;
+      const d = start + len * u;
+      const cx = Math.cos(ang) * d;
+      const cy = Math.sin(ang) * d;
+      const w = w0 * Math.pow(1 - u, 2.4) + neck;
+      const nx = -Math.sin(ang);
+      const ny = Math.cos(ang);
+      left.push([cx + nx * w * 0.5, cy + ny * w * 0.5]);
+      right.push([cx - nx * w * 0.5, cy - ny * w * 0.5]);
+      endX = cx;
+      endY = cy;
     }
+    const head = Math.max(neck * 1.3, R * rand(0.05, 0.11) * (0.8 + len / (R * 2.5)));
+    spines += polygonPath([...left, ...right.reverse()]) + ' ' + circlePath(endX, endY, head) + ' ';
+    tips.push({ a: a + bend, d: start + len, head });
   }
 
-  // Éclats : formes irrégulières de toutes tailles, plus denses dans le sens du coup.
   const bands = ['', '', '', ''];
-  for (let i = 0; i < 130; i++) {
-    const a = aimed(0.65, 0.6);
-    const dist = R * (1.05 + Math.pow(Math.random(), 1.5) * 4.6);
-    const fade = 1.25 - (dist / R - 1.05) / 4.6;
-    const size = R * rand(0.02, 0.13) * Math.max(0.25, fade) * (Math.random() < 0.08 ? 2 : 1);
-    const cx = Math.cos(a) * dist;
-    const cy = Math.sin(a) * dist;
-    const stretchK = rand(1, 1.9);
-    const sides = Math.round(rand(5, 8));
-    const spin = rand(0, Math.PI * 2);
-    const pts: Point[] = [];
-    for (let s = 0; s < sides; s++) {
-      const b = spin + (s / sides) * Math.PI * 2;
-      const rr = size * rand(0.55, 1.15);
-      // Étiré dans le sens de la projection.
-      const lx = Math.cos(b) * rr * stretchK;
-      const ly = Math.sin(b) * rr;
-      pts.push([cx + lx * Math.cos(a) - ly * Math.sin(a), cy + lx * Math.sin(a) + ly * Math.cos(a)]);
+  const bandOf = (dist: number) => Math.max(0, Math.min(3, Math.floor(((dist / R - 1) / 4.2) * 4)));
+
+  // Chapelets : gouttes de plus en plus petites dans le prolongement de certains jets.
+  for (const tip of tips) {
+    if (Math.random() < 0.4) continue;
+    let d = tip.d + tip.head * rand(2, 3.5);
+    let size = tip.head * rand(0.55, 0.8);
+    const beads = Math.round(rand(2, 6));
+    for (let k = 0; k < beads && size > R * 0.008; k++) {
+      const a = tip.a + randn() * 0.03;
+      bands[bandOf(d)] += teardrop(Math.cos(a) * d, Math.sin(a) * d, a, size, size * rand(1.2, 2)) + ' ';
+      d += size * rand(3, 6) + R * rand(0.05, 0.2);
+      size *= rand(0.55, 0.8);
     }
-    const band = Math.min(3, Math.floor(((dist / R - 1.05) / 4.6) * 4));
-    bands[band] += (Math.random() < 0.5 ? polygonPath(pts) : smoothClosedPath(pts, 0.5)) + ' ';
   }
 
-  return { x, y, core, spikes, streaks, flecks: bands };
+  // Larmes isolées, tête vers l'extérieur.
+  for (let i = 0; i < 16; i++) {
+    const a = aimed(0.8, 0.55);
+    const d = R * rand(1.5, 3.8);
+    const head = R * rand(0.035, 0.09) * (1.3 - (d / R - 1.5) / 3.8);
+    bands[bandOf(d)] += teardrop(Math.cos(a) * d, Math.sin(a) * d, a, head, head * rand(1.6, 3.4)) + ' ';
+  }
+
+  // Petites taches rondes et irrégulières près de l'impact.
+  for (let i = 0; i < 14; i++) {
+    const a = rand(0, Math.PI * 2);
+    const d = R * rand(1.05, 1.6);
+    const sr = R * rand(0.04, 0.14);
+    const cx = Math.cos(a) * d;
+    const cy = Math.sin(a) * d;
+    const pts: Point[] = Array.from({ length: 9 }, (_, k) => {
+      const b = (k / 9) * Math.PI * 2;
+      const rr = sr * rand(0.8, 1.15);
+      return [cx + Math.cos(b) * rr, cy + Math.sin(b) * rr];
+    });
+    bands[0] += smoothClosedPath(pts) + ' ';
+  }
+
+  // Bruine : micro-gouttes, plus denses dans le sens du coup.
+  for (let i = 0; i < 90; i++) {
+    const a = aimed(0.7, 0.6);
+    const d = R * (1.2 + Math.pow(Math.random(), 1.4) * 4);
+    const size = Math.max(0.7, R * rand(0.006, 0.03) * (1.4 - (d / R - 1.2) / 4));
+    const stretchK = rand(1, 1.7);
+    const cx = Math.cos(a) * d;
+    const cy = Math.sin(a) * d;
+    if (stretchK > 1.3) bands[bandOf(d)] += teardrop(cx, cy, a, size, size * stretchK * 1.6) + ' ';
+    else bands[bandOf(d)] += circlePath(cx, cy, size) + ' ';
+  }
+
+  return { x, y, core, spines, flecks: bands };
 }
 
 // ---------- Rendu de l'éclaboussure (animée sur l'accueil, figée sur les autres pages) ----------
@@ -271,26 +314,20 @@ export function SplatShapes({ splat, animated }: { splat: Splat; animated: boole
   const from = (scale: number) => (animated ? { scale } : false);
   return (
     <g fill={INK}>
-      <motion.path
-        d={splat.streaks}
-        initial={from(0.3)}
-        animate={{ scale: 1 }}
-        transition={{ duration: 0.32, ease: [0.1, 0.9, 0.2, 1] }}
-      />
       {splat.flecks.map((d, i) => (
         <motion.path
           key={i}
           d={d}
           initial={from(0.2)}
           animate={{ scale: 1 }}
-          transition={{ duration: 0.24 + i * 0.07, delay: i * 0.015, ease: [0.1, 0.9, 0.25, 1] }}
+          transition={{ duration: 0.26 + i * 0.08, delay: 0.01 + i * 0.015, ease: [0.1, 0.9, 0.25, 1] }}
         />
       ))}
       <motion.path
-        d={splat.spikes}
-        initial={from(0.15)}
+        d={splat.spines}
+        initial={from(0.2)}
         animate={{ scale: 1 }}
-        transition={{ duration: 0.2, ease: [0.1, 0.95, 0.3, 1.1] }}
+        transition={{ duration: 0.24, ease: [0.1, 0.95, 0.3, 1.08] }}
       />
       {/* Impact : la tache dépasse sa taille puis se pose. */}
       <motion.path
@@ -313,7 +350,7 @@ interface InkBubbleProps {
 }
 
 const MAX_PIECES = 4;
-const MAX_TENDRILS = 7;
+const MAX_TENDRILS = 14;
 
 export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
   const reducedMotion = useReducedMotion() ?? false;
@@ -387,15 +424,25 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
     const noiseSmooth = new Float32Array(VERTICES);
     const tendrils: Tendril[] = [];
 
-    const spawnTendril = (angle: number, length: number) => {
+    /** Tentacule d'un morceau vers un autre (seulement pendant la reconstitution). */
+    const spawnTendril = (from: Piece, to: Piece) => {
       if (tendrils.length >= MAX_TENDRILS) return;
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const gap = Math.max(0, Math.hypot(dx, dy) - from.r * 0.7);
       tendrils.push({
-        angle,
-        length,
-        width: radius * rand(0.12, 0.26),
-        life: rand(0.55, 1.4),
+        src: from,
+        dst: to,
+        aim: randn() * 0.35,
+        ox: from.x,
+        oy: from.y,
+        baseR: from.r,
+        angle: Math.atan2(dy, dx) + randn() * 0.35,
+        length: gap * rand(0.45, 1.05),
+        width: from.r * rand(0.18, 0.34),
+        life: rand(0.35, 0.8),
         age: 0,
-        curl: rand(0.3, 1.1) * (Math.random() < 0.5 ? -1 : 1),
+        curl: rand(0.3, 1) * (Math.random() < 0.5 ? -1 : 1),
         phase: rand(0, 6.3),
       });
     };
@@ -462,20 +509,31 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
           noiseSmooth[i] = noise[i] * 0.5 + (noise[(i - 1 + VERTICES) % VERTICES] + noise[(i + 1) % VERTICES]) * 0.25;
         }
 
-        // ---- Tentacules : quelques-unes au hasard, beaucoup vers la souris toute proche.
+        // ---- Tentacules (uniquement quand la bulle est coupée) : les morceaux se lancent
+        // des filaments pour s'agripper et se recoller.
         nextTendril -= dt;
-        const near = dist < radius * 3.2;
-        if (!pieces.current && nextTendril <= 0) {
-          if (near) {
-            spawnTendril(cursorAngle + randn() * 0.5, Math.min(dist * 0.95, radius * 2.6) * rand(0.55, 1.05));
-            nextTendril = rand(0.08, 0.25);
-          } else {
-            spawnTendril(rand(0, Math.PI * 2), radius * rand(0.6, 1.6));
-            nextTendril = rand(0.5, 1.6);
+        const cut = pieces.current;
+        if (cut && cut.length > 1 && nextTendril <= 0) {
+          const i = 1 + Math.floor(Math.random() * (cut.length - 1));
+          if (Math.random() < 0.5) spawnTendril(cut[i], cut[0]);
+          else spawnTendril(cut[0], cut[i]);
+          nextTendril = rand(0.04, 0.12);
+        }
+        for (const td of tendrils) {
+          td.age += dt;
+          // La tentacule suit son morceau et vise toujours sa cible.
+          if (td.src && td.dst) {
+            td.ox = td.src.x;
+            td.oy = td.src.y;
+            td.baseR = td.src.r;
+            td.angle = Math.atan2(td.dst.y - td.src.y, td.dst.x - td.src.x) + td.aim;
           }
         }
-        for (const td of tendrils) td.age += dt;
-        for (let i = tendrils.length - 1; i >= 0; i--) if (tendrils[i].age >= tendrils[i].life) tendrils.splice(i, 1);
+        for (let i = tendrils.length - 1; i >= 0; i--) {
+          const td = tendrils[i];
+          const gone = td.src && pieces.current && !pieces.current.includes(td.src);
+          if (td.age >= td.life || gone) tendrils.splice(i, 1);
+        }
 
         // ---- Coupure : un geste vif qui traverse le cœur coupe la bulle en morceaux.
         if (!pieces.current && cooldown === 0 && mouseSpeed > 1600 && dist < radius * 0.6 && now - p.t < 50) {
@@ -537,6 +595,7 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
           }
           if (list.length === 1 && Math.hypot(main.x, main.y) < radius * 0.1) {
             pieces.current = null;
+            tendrils.length = 0;
             cooldown = 0.6;
             // Tremblement à la reconstitution.
             for (let i = 0; i < VERTICES; i++) velocities[i] += radius * rand(-1.5, 5);
@@ -581,7 +640,6 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
       const list = pieces.current;
       if (list) {
         shapeRef.current?.setAttribute('d', '');
-        tendrilsRef.current?.setAttribute('d', '');
         let strands = '';
         const main = list[0];
         for (let i = 0; i < MAX_PIECES; i++) {
@@ -621,14 +679,15 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
           }
         }
         strandsRef.current?.setAttribute('d', strands);
+        tendrilsRef.current?.setAttribute('d', tendrils.map((td) => tendrilPath(td, ripple)).join(' '));
       } else {
         for (const el of pieceRefs.current) el?.setAttribute('d', '');
         strandsRef.current?.setAttribute('d', '');
         shapeRef.current?.setAttribute(
           'd',
-          bubblePath(radius, ripple, wobble, phases, offsets, noiseSmooth, hovered.current ? 0.11 : 0.07),
+          bubblePath(radius, ripple, wobble, phases, offsets, noiseSmooth, hovered.current ? 0.05 : 0.03),
         );
-        tendrilsRef.current?.setAttribute('d', tendrils.map((td) => tendrilPath(td, radius, ripple)).join(' '));
+        tendrilsRef.current?.setAttribute('d', '');
       }
       raf = requestAnimationFrame(frame);
     };

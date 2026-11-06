@@ -11,7 +11,7 @@ export interface StoredStain {
   ry: number;
 }
 
-const KEY = 'raleurs-ink-stain-v2'; // v2 : éclaboussure façon Sin City
+const KEY = 'raleurs-ink-stain-v3'; // v3 : jets terminés en goutte
 const listeners = new Set<() => void>();
 let current: StoredStain | null = null;
 
