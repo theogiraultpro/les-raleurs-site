@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useState } from 'react';
 import { X, Minus, Plus, Trash2, ArrowLeft, CheckCircle } from 'lucide-react';
 import { CONTACT_EMAIL, sendForm } from '../lib/contact';
+import { responsiveImage } from '../lib/image';
 
 interface CartItem {
   id: number;
@@ -186,7 +187,7 @@ export function Cart({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, o
                             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                           >
                             <motion.img
-                              src={item.image}
+                              {...responsiveImage(item.image, '80px', 256)}
                               alt={item.name}
                               className="w-20 h-20 object-cover rounded-xl"
                               whileHover={{ scale: 1.05 }}

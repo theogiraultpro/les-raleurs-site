@@ -8,6 +8,7 @@ import exampleImage4 from '@/imports/figma/ac7c61240dacda776e2cd7085b803686ea6b6
 import exampleImage5 from '@/imports/figma/a613346acc5bd7b0d1973cfd6eecf2119cb75452.jpg';
 import exampleImage6 from '@/imports/figma/48a13cc1101a6d500bf61add489ed5e9131ce42e.jpg';
 import { CONTACT_EMAIL, sendForm } from '../lib/contact';
+import { responsiveImage } from '../lib/image';
 
 const SERVICE_LABELS: Record<string, string> = {
   'illustration-personnalisee': 'Illustration personnalisée',
@@ -305,7 +306,8 @@ export default function CommissionsPage() {
                   </motion.div>
                   <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300" />
                   <img
-                    src={example.image}
+                    {...responsiveImage(example.image, '(min-width: 768px) 33vw, 100vw', 1280)}
+                    loading="lazy"
                     alt={example.title}
                     className="absolute inset-0 w-full h-full object-cover"
                   />

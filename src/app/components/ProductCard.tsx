@@ -1,6 +1,7 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
 import { ShoppingCart, Heart } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { responsiveImage } from '../lib/image';
 
 interface ProductCardProps {
   id: number;
@@ -101,8 +102,9 @@ export function ProductCard({ id, name, price, image, category, onAddToCart, onT
             }}
           >
             <img
-              src={image}
+              {...responsiveImage(image, '(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw', 1280)}
               alt={name}
+              loading="lazy"
               className="w-full h-full object-cover"
             />
           </motion.div>
@@ -179,9 +181,13 @@ export function ProductCard({ id, name, price, image, category, onAddToCart, onT
 
       {/* Liquid Blob Effect */}
       <motion.div
-        className="absolute -inset-4 rounded-full blur-3xl -z-10"
+        className="absolute -inset-16 -z-10 pointer-events-none"
         style={{
-          background: 'linear-gradient(to bottom right, #f3e8ff, #fce7f3, #dbeafe)'
+          // Halo doux sans filtre de flou (le flou animé faisait saccader le survol)
+          background: 'linear-gradient(to bottom right, #f3e8ff, #fce7f3, #dbeafe)',
+          maskImage: 'radial-gradient(closest-side, #000 40%, transparent 100%)',
+          WebkitMaskImage: 'radial-gradient(closest-side, #000 40%, transparent 100%)',
+          willChange: 'transform, opacity',
         }}
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{

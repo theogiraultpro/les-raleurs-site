@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import { responsiveImage } from '../lib/image';
 
 interface FavoriteItem {
   id: string;
@@ -101,7 +102,7 @@ export function Favorites({ isOpen, onClose, items, onRemoveFavorite }: Favorite
                       <div className="flex gap-4 p-4">
                         <div className="w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden">
                           <img
-                            src={item.image}
+                            {...responsiveImage(item.image, '96px', 384)}
                             alt={item.title}
                             className="w-full h-full object-cover"
                           />

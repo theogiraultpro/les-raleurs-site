@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import Lightbox from '../components/Lightbox';
 import { Description } from '../components/Description';
 import type { Illustration } from '../content/types';
+import { responsiveImage } from '../lib/image';
 
 const font = '"aktiv-grotesk-condensed", sans-serif';
 
@@ -82,7 +83,7 @@ export default function PrintPage({ illustration }: { illustration: Illustration
               transition={{ type: 'spring', stiffness: 150, damping: 20, mass: 1.5 }}
             >
               <motion.img
-                src={image}
+                {...responsiveImage(image, '(min-width: 1024px) 600px, 100vw')}
                 alt={illustration.title}
                 className="w-full h-auto"
                 onClick={() => setLightboxOpen(true)}

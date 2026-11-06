@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { responsiveImage } from '../lib/image';
 
 interface LightboxProps {
   src: string;
@@ -71,7 +72,7 @@ export default function Lightbox({ src, alt, onClose, onPrev, onNext }: Lightbox
         {/* Image */}
         <motion.img
           key={src}
-          src={src}
+          {...responsiveImage(src, '90vw')}
           alt={alt ?? ''}
           className="relative z-10 max-h-[90vh] max-w-[90vw] object-contain rounded-2xl select-none"
           initial={{ opacity: 0, scale: 0.92 }}

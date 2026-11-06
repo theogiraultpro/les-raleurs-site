@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, ShoppingCart } from 'lucide-react';
 import Lightbox from '../components/Lightbox';
 import { Description } from '../components/Description';
 import type { GalleryImage } from '../content/types';
+import { responsiveImage } from '../lib/image';
 
 const font = '"aktiv-grotesk-condensed", sans-serif';
 
@@ -134,7 +135,7 @@ export default function GalleryPage({ title, subtitle, description, images, shop
                   }}
                 >
                   <img
-                    src={current.src}
+                    {...responsiveImage(current.src, '(min-width: 1024px) 600px, 100vw')}
                     alt={`${cleanTitle} - ${current.caption}`}
                     className="w-full h-auto"
                     onClick={() => setLightboxOpen(true)}
@@ -294,7 +295,7 @@ export default function GalleryPage({ title, subtitle, description, images, shop
                           : 'ring-2 ring-gray-200 hover:ring-black hover:shadow-lg'
                       }`}
                     >
-                      <img src={image.src} alt={image.caption} className="w-full h-full object-cover" loading="lazy" />
+                      <img {...responsiveImage(image.src, '128px', 384)} alt={image.caption} className="w-full h-full object-cover" loading="lazy" />
                     </div>
                     {index === currentIndex && (
                       <motion.div

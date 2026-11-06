@@ -3,5 +3,34 @@
   "framework": "vite",
   "buildCommand": "vite build",
   "outputDirectory": "dist",
-  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "images": {
+    "sizes": [
+      256,
+      384,
+      640,
+      960,
+      1280,
+      1920
+    ],
+    "domains": [],
+    "remotePatterns": [
+      {
+        "protocol": "https",
+        "hostname": "7ofla7zuue2h7rgx.public.blob.vercel-storage.com"
+      }
+    ],
+    "formats": [
+      "image/webp"
+    ],
+    "qualities": [
+      75
+    ],
+    "minimumCacheTTL": 2678400
+  }
 }
