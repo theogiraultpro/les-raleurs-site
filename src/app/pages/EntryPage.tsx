@@ -35,7 +35,7 @@ export default function EntryPage() {
         subtitle={illustration.subtitle}
         description={illustration.description}
         images={illustration.images ?? []}
-        shop={{ price: illustration.seriesPrice ?? illustration.card.price ?? 0, cartId: illustration.cartId, sold: illustration.sold }}
+        shop={{ price: illustration.seriesPrice ?? illustration.card.price ?? 0, slug: illustration.slug, sold: illustration.sold }}
         backTo={{ label: 'Retour à la galerie', path: '/illustrations' }}
       />
     );

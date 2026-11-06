@@ -22,14 +22,18 @@ export function optimizedUrl(src: string, width: number): string {
   return `/_vercel/image?url=${encodeURIComponent(src)}&w=${width}&q=${QUALITY}`;
 }
 
+// Les visiteurs ne reçoivent jamais mieux que 1280 px de large : assez pour
+// un écran, trop peu pour une impression de qualité.
+const MAX_PUBLIC_WIDTH = 1280;
+
 /**
  * Attributs à étaler sur une balise <img> :
  *   <img {...responsiveImage(src, '(min-width: 1024px) 33vw, 100vw')} alt="…" />
  * `sizes` indique la largeur d'affichage ; `maxWidth` limite la plus grande version.
  */
-export function responsiveImage(src: string, sizes: string, maxWidth = 1920) {
+export function responsiveImage(src: string, sizes: string, maxWidth = MAX_PUBLIC_WIDTH) {
   if (!canOptimize(src)) return { src, decoding: 'async' as const };
-  const widths = IMAGE_WIDTHS.filter((w) => w <= maxWidth);
+  const widths = IMAGE_WIDTHS.filter((w) => w <= Math.min(maxWidth, MAX_PUBLIC_WIDTH));
   return {
     src: optimizedUrl(src, widths[widths.length - 1]),
     srcSet: widths.map((w) => `${optimizedUrl(src, w)} ${w}w`).join(', '),

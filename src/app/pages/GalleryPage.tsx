@@ -9,8 +9,10 @@ import { responsiveImage } from '../lib/image';
 
 const font = '"aktiv-grotesk-condensed", sans-serif';
 
+import type { AddToCart } from '../Root';
+
 interface OutletContext {
-  handleAddToCart: (product: { id: number; name: string; price: number; image: string }) => void;
+  handleAddToCart: AddToCart;
 }
 
 interface GalleryPageProps {
@@ -19,7 +21,7 @@ interface GalleryPageProps {
   description: string;
   images: GalleryImage[];
   /** Si présent, chaque visuel est achetable à ce prix (séries d'illustrations). */
-  shop?: { price: number; cartId: number; sold?: boolean };
+  shop?: { price: number; slug: string; sold?: boolean };
   backTo: { label: string; path: string };
 }
 
@@ -58,7 +60,8 @@ export default function GalleryPage({ title, subtitle, description, images, shop
   const addCurrentToCart = () => {
     if (!shop || !current) return;
     handleAddToCart({
-      id: shop.cartId * 1000 + currentIndex + 1,
+      slug: shop.slug,
+      visual: currentIndex,
       name: `${cleanTitle} — ${current.caption}`,
       price: shop.price,
       image: current.src,

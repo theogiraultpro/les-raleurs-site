@@ -8,8 +8,10 @@ import { responsiveImage } from '../lib/image';
 
 const font = '"aktiv-grotesk-condensed", sans-serif';
 
+import type { AddToCart } from '../Root';
+
 interface OutletContext {
-  handleAddToCart: (product: { id: number; name: string; price: number; image: string }) => void;
+  handleAddToCart: AddToCart;
 }
 
 /** Fiche d'une illustration vendue en print (une image, plusieurs formats). */
@@ -34,8 +36,9 @@ export default function PrintPage({ illustration }: { illustration: Illustration
   const handleAddToCartClick = () => {
     if (!selectedFormat || illustration.sold) return;
     handleAddToCart({
-      id: illustration.cartId,
-      name: `${illustration.title.replace(/^\./, '')} - ${selectedFormat.format}`,
+      slug: illustration.slug,
+      format: selectedFormat.format,
+      name: `${illustration.title.replace(/^\./, '')} — ${selectedFormat.label || selectedFormat.format}`,
       price: selectedFormat.price,
       image,
     });

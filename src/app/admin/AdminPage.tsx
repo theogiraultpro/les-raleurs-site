@@ -7,6 +7,7 @@ import type { Illustration, Project, SiteContent } from '../content/types';
 import { getSession, loadContent, login, logout, saveContent, type SessionInfo } from './api';
 import { IconButton, StorageContext } from './fields';
 import { IllustrationEditor, ProjectEditor } from './Editors';
+import { Orders } from './Orders';
 
 type Tab = 'illustrations' | 'projects';
 
@@ -136,6 +137,7 @@ function Editor({ storage, onLogout }: { storage: SessionInfo['storage']; onLogo
   const [content, setContent] = useState<SiteContent | null>(null);
   const [saved, setSaved] = useState<string>('');
   const [tab, setTab] = useState<Tab>('illustrations');
+  const [view, setView] = useState<'catalog' | 'orders'>('catalog');
   const [selected, setSelected] = useState<number | null>(null);
   const [status, setStatus] = useState<{ kind: 'idle' | 'saving' | 'ok' | 'error'; message?: string }>({ kind: 'idle' });
   const [isFirstPublish, setIsFirstPublish] = useState(false);
@@ -219,7 +221,19 @@ function Editor({ storage, onLogout }: { storage: SessionInfo['storage']; onLogo
       {/* Barre du haut */}
       <header className="sticky top-0 z-20 border-b border-neutral-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
-          <h1 className="mr-auto text-lg font-bold italic">Les Râleurs — admin</h1>
+          <h1 className="hidden text-lg font-bold italic sm:block">Les Râleurs — admin</h1>
+          <div className="mr-auto flex rounded-full bg-neutral-200 p-1 text-sm font-medium">
+            {(['catalog', 'orders'] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setView(key)}
+                className={`rounded-full px-3 py-1 ${view === key ? 'bg-white shadow-sm' : 'text-neutral-600'}`}
+              >
+                {key === 'catalog' ? 'Œuvres' : 'Commandes'}
+              </button>
+            ))}
+          </div>
           <a href={siteLink('/illustrations')} target="_blank" rel="noreferrer" className="hidden items-center gap-1 text-sm text-neutral-600 hover:text-black sm:inline-flex">
             Voir le site <ExternalLink size={14} />
           </a>
@@ -260,6 +274,7 @@ function Editor({ storage, onLogout }: { storage: SessionInfo['storage']; onLogo
         )}
       </header>
 
+      {view === 'orders' ? <Orders /> : (
       <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 md:grid-cols-[320px_1fr]">
         {/* Liste */}
         <aside className={`min-w-0 ${current ? 'hidden md:block' : ''}`}>
@@ -376,6 +391,7 @@ function Editor({ storage, onLogout }: { storage: SessionInfo['storage']; onLogo
           )}
         </main>
       </div>
+      )}
     </div>
   );
 }

@@ -5,14 +5,18 @@ import CustomCursor from './components/CustomCursor';
 import { Cart } from './components/Cart';
 import { Favorites } from './components/Favorites';
 import { Footer } from './components/Footer';
+import { itemKey, type ItemRef } from './content/pricing';
 
-interface CartItem {
-  id: number;
+/** Article du panier : la référence (œuvre + format ou visuel) fait foi, le prix n'est qu'indicatif. */
+export interface CartItem extends ItemRef {
+  key: string;
   name: string;
   price: number;
   image: string;
   quantity: number;
 }
+
+export type AddToCart = (product: ItemRef & { name: string; price: number; image: string }) => void;
 
 interface FavoriteItem {
   id: string;
@@ -29,6 +33,20 @@ export default function Root() {
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
 
+  // Protection des images : pas de clic droit (« Enregistrer l'image sous… »)
+  // ni de glisser-déposer d'une image vers le bureau.
+  useEffect(() => {
+    const block = (event: Event) => {
+      if ((event.target as HTMLElement | null)?.closest?.('img')) event.preventDefault();
+    };
+    document.addEventListener('contextmenu', block);
+    document.addEventListener('dragstart', block);
+    return () => {
+      document.removeEventListener('contextmenu', block);
+      document.removeEventListener('dragstart', block);
+    };
+  }, []);
+
   // Load favorites from localStorage on mount
   useEffect(() => {
     const savedFavorites = localStorage.getItem('favorites');
@@ -42,32 +60,31 @@ export default function Root() {
     localStorage.setItem('favorites', JSON.stringify(favoriteItems));
   }, [favoriteItems]);
 
-  const handleAddToCart = (product: Omit<CartItem, 'quantity'>) => {
+  const handleAddToCart: AddToCart = (product) => {
+    const key = itemKey(product);
     setCartItems((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
+      const existing = prev.find((item) => item.key === key);
       if (existing) {
         return prev.map((item) =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+          item.key === key ? { ...item, quantity: Math.min(10, item.quantity + 1) } : item
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { ...product, key, quantity: 1 }];
     });
   };
 
-  const handleUpdateQuantity = (id: number, quantity: number) => {
+  const handleUpdateQuantity = (key: string, quantity: number) => {
     if (quantity === 0) {
-      handleRemoveItem(id);
+      handleRemoveItem(key);
       return;
     }
     setCartItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, quantity } : item))
+      prev.map((item) => (item.key === key ? { ...item, quantity: Math.min(10, quantity) } : item))
     );
   };
 
-  const handleRemoveItem = (id: number) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== id));
+  const handleRemoveItem = (key: string) => {
+    setCartItems((prev) => prev.filter((item) => item.key !== key));
   };
 
   const handleToggleFavorite = (item: FavoriteItem) => {

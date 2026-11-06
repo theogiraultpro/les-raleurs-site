@@ -2,6 +2,8 @@ import { motion } from 'motion/react';
 import { useNavigate, useOutletContext } from 'react-router';
 import { ProductCard } from '../components/ProductCard';
 import { useContent } from '../content/ContentContext';
+import { quickAddFormat } from '../content/pricing';
+import type { AddToCart } from '../Root';
 import { isPhone } from '../lib/mobile';
 
 
@@ -15,9 +17,10 @@ export default function Home() {
     image: item.card.image,
     category: item.card.subtitle,
     path: `/${item.slug}`,
+    work: item,
   }));
   const { handleAddToCart, handleToggleFavorite, isFavorite } = useOutletContext<{
-    handleAddToCart: (p: { id: number; name: string; price: number; image: string }) => void;
+    handleAddToCart: AddToCart;
     handleToggleFavorite: (item: { id: string; title: string; image: string; type: 'illustration' | 'portfolio'; route: string }) => void;
     isFavorite: (id: string) => boolean;
   }>();
@@ -88,8 +91,34 @@ export default function Home() {
                 transition={{ delay: isPhone ? 0.05 : 0.7 + index * 0.1, duration: isPhone ? 0.35 : 0.5 }}
               >
                 <ProductCard
-                  {...product}
-                  onAddToCart={(p) => handleAddToCart(p)}
+                  id={product.id}
+                  name={product.name}
+                  price={product.price}
+                  image={product.image}
+                  category={product.category}
+                  onAddToCart={(p) => {
+                    const { work } = product;
+                    if (work.sold) return;
+                    if (work.kind === 'print') {
+                      const format = quickAddFormat(work);
+                      const chosen = work.formats?.find((f) => f.format === format);
+                      if (!chosen) return;
+                      handleAddToCart({
+                        slug: work.slug,
+                        format,
+                        name: `${work.title.replace(/^\./, '')} — ${chosen.label || chosen.format}`,
+                        price: chosen.price,
+                        image: p.image,
+                      });
+                    } else {
+                      handleAddToCart({
+                        slug: work.slug,
+                        name: `${work.title.replace(/^\./, '')} — visuel au choix`,
+                        price: work.seriesPrice ?? p.price,
+                        image: p.image,
+                      });
+                    }
+                  }}
                   onToggleFavorite={() => handleToggleFavorite({
                     id: String(product.id),
                     title: product.name,

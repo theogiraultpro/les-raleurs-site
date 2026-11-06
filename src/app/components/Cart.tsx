@@ -1,23 +1,40 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { useState } from 'react';
 import { X, Minus, Plus, Trash2, ArrowLeft, CheckCircle } from 'lucide-react';
-import { CONTACT_EMAIL, sendForm } from '../lib/contact';
+import { sendForm } from '../lib/contact';
 import { responsiveImage } from '../lib/image';
+import { useContent } from '../content/ContentContext';
+import { catalogPrice } from '../content/pricing';
+import type { CartItem } from '../Root';
 
-interface CartItem {
-  id: number;
-  name: string;
-  price: number;
-  image: string;
-  quantity: number;
+interface VerifiedOrder {
+  number: string;
+  lines: Array<{ title: string; option: string; unitPrice: number; quantity: number; lineTotal: number }>;
+  total: number;
+}
+
+/** Envoie la commande au serveur, qui recalcule tous les prix à partir du catalogue. */
+async function registerOrder(items: CartItem[], customer: Record<string, string>, displayedTotal: number): Promise<VerifiedOrder> {
+  const response = await fetch('/api/order', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      items: items.map(({ slug, format, visual, quantity }) => ({ slug, format, visual, quantity })),
+      customer,
+      displayedTotal,
+    }),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.number) throw new Error(data?.error ?? "La commande n'a pas pu être enregistrée.");
+  return data as VerifiedOrder;
 }
 
 interface CartProps {
   isOpen: boolean;
   onClose: () => void;
   items: CartItem[];
-  onUpdateQuantity: (id: number, quantity: number) => void;
-  onRemoveItem: (id: number) => void;
+  onUpdateQuantity: (key: string, quantity: number) => void;
+  onRemoveItem: (key: string) => void;
   onOrderSent: () => void;
 }
 
@@ -35,8 +52,16 @@ const EMPTY_CUSTOMER = {
 
 const euros = (value: number) => `${value.toFixed(2).replace('.', ',')} €`;
 
-export function Cart({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, onOrderSent }: CartProps) {
+export function Cart({ isOpen, onClose, items: rawItems, onUpdateQuantity, onRemoveItem, onOrderSent }: CartProps) {
+  const content = useContent();
+  // Prix toujours relus dans le catalogue actuel (jamais ceux mémorisés au moment de l'ajout).
+  const items = rawItems.map((item) => {
+    const price = catalogPrice(content, item);
+    return { ...item, price: price ?? 0, unavailable: price === null };
+  });
+  const hasUnavailable = items.some((item) => item.unavailable);
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const [orderNumber, setOrderNumber] = useState('');
   const [step, setStep] = useState<Step>('cart');
   const [customer, setCustomer] = useState(EMPTY_CUSTOMER);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -56,21 +81,38 @@ export function Cart({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, o
 
   const handleOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Champ piège coché par un robot : on fait comme si tout allait bien.
+    if (botcheck) {
+      setStep('done');
+      return;
+    }
     setIsSending(true);
     setError('');
-    const lines = items
-      .map((item) => `- ${item.name} × ${item.quantity} = ${euros(item.price * item.quantity)}`)
+    let order: VerifiedOrder;
+    try {
+      // 1. Le serveur vérifie et enregistre la commande (prix recalculés).
+      order = await registerOrder(rawItems, customer, total);
+    } catch (err) {
+      setError((err as Error).message);
+      setIsSending(false);
+      return;
+    }
+    // 2. L'e-mail reprend uniquement les montants vérifiés par le serveur.
+    const lines = order.lines
+      .map((line) => `- ${line.title} (${line.option}) × ${line.quantity} = ${euros(line.lineTotal)}`)
       .join('\n');
     try {
       const result = await sendForm(
-        `Nouvelle commande — ${customer.name} — ${euros(total)}`,
+        `Commande ${order.number} — ${customer.name} — ${euros(order.total)}`,
         {
+          'N° de commande': order.number,
           Client: customer.name,
           'E-mail': customer.email,
           Téléphone: customer.phone,
           'Adresse de livraison': `${customer.address}, ${customer.postalCode} ${customer.city}, France`,
           Articles: lines,
-          'Total des œuvres (hors frais de port)': euros(total),
+          'Total des œuvres (hors frais de port)': euros(order.total),
+          Vérification: 'Montant recalculé par le serveur. Contrôlez-le dans lesraleurs.com/admin → Commandes.',
           'Message du client': customer.message,
           'CGV acceptées': 'Oui',
         },
@@ -79,12 +121,18 @@ export function Cart({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, o
       // En mode secours (messagerie du visiteur), le panier reste en place :
       // la commande n'est partie que quand le visiteur aura envoyé l'e-mail.
       if (result === 'mailto') return;
+      setOrderNumber(order.number);
       setStep('done');
       setCustomer(EMPTY_CUSTOMER);
       setAcceptedTerms(false);
       onOrderSent();
     } catch {
-      setError(`La commande n'a pas pu partir. Réessayez, ou écrivez directement à ${CONTACT_EMAIL}.`);
+      // La commande est enregistrée côté serveur même si l'e-mail n'est pas parti.
+      setOrderNumber(order.number);
+      setStep('done');
+      setCustomer(EMPTY_CUSTOMER);
+      setAcceptedTerms(false);
+      onOrderSent();
     } finally {
       setIsSending(false);
     }
@@ -143,6 +191,11 @@ export function Cart({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, o
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8 gap-4">
                 <CheckCircle className="w-16 h-16 text-green-500" />
                 <h3 className="text-2xl">Commande envoyée, merci !</h3>
+                {orderNumber && (
+                  <p className="text-sm text-gray-500">
+                    N° de commande : <span className="font-mono text-black">{orderNumber}</span>
+                  </p>
+                )}
                 <p className="text-gray-600">
                   Je vous réponds sous 48 h par e-mail avec le total frais de port compris et les modalités de
                   paiement (virement ou PayPal). Rien n'est débité pour l'instant.
@@ -171,7 +224,7 @@ export function Cart({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, o
                       <AnimatePresence mode="popLayout">
                         {items.map((item) => (
                           <motion.div
-                            key={item.id}
+                            key={item.key}
                             className="flex gap-4 bg-gray-50 rounded-2xl p-4"
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -194,7 +247,11 @@ export function Cart({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, o
                             />
                             <div className="flex-1">
                               <h3 className="mb-1">{item.name}</h3>
-                              <p className="text-gray-600">{euros(item.price)}</p>
+                              {item.unavailable ? (
+                                <p className="text-red-600 text-sm">Plus disponible — à retirer du panier</p>
+                              ) : (
+                                <p className="text-gray-600">{euros(item.price)}</p>
+                              )}
 
                               {/* Quantity Controls */}
                               <div className="flex items-center gap-2 mt-3">
@@ -202,7 +259,7 @@ export function Cart({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, o
                                   className="w-8 h-8 rounded-full bg-white flex items-center justify-center hover:bg-gray-200 transition-colors"
                                   whileHover={{ scale: 1.1 }}
                                   whileTap={{ scale: 0.95 }}
-                                  onClick={() => onUpdateQuantity(item.id, Math.max(0, item.quantity - 1))}
+                                  onClick={() => onUpdateQuantity(item.key, Math.max(0, item.quantity - 1))}
                                   aria-label="Retirer un exemplaire"
                                 >
                                   <Minus size={14} />
@@ -212,7 +269,8 @@ export function Cart({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, o
                                   className="w-8 h-8 rounded-full bg-white flex items-center justify-center hover:bg-gray-200 transition-colors"
                                   whileHover={{ scale: 1.1 }}
                                   whileTap={{ scale: 0.95 }}
-                                  onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                                  onClick={() => onUpdateQuantity(item.key, item.quantity + 1)}
+                                  disabled={item.quantity >= 10}
                                   aria-label="Ajouter un exemplaire"
                                 >
                                   <Plus size={14} />
@@ -223,7 +281,7 @@ export function Cart({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, o
                               className="p-2 hover:bg-red-50 rounded-full transition-colors self-start"
                               whileHover={{ scale: 1.1 }}
                               whileTap={{ scale: 0.95 }}
-                              onClick={() => onRemoveItem(item.id)}
+                              onClick={() => onRemoveItem(item.key)}
                               aria-label="Supprimer du panier"
                             >
                               <Trash2 size={18} className="text-red-500" />
@@ -249,11 +307,15 @@ export function Cart({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, o
                       </motion.span>
                     </div>
                     <p className="text-sm text-gray-500">Hors frais de port. Livraison en France uniquement.</p>
+                    {hasUnavailable && (
+                      <p className="text-sm text-red-600">Retirez les œuvres qui ne sont plus disponibles pour commander.</p>
+                    )}
                     <motion.button
-                      className="w-full bg-black text-white py-4 rounded-full hover:bg-gray-800 transition-colors"
+                      className="w-full bg-black text-white py-4 rounded-full hover:bg-gray-800 transition-colors disabled:opacity-40"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setStep('checkout')}
+                      disabled={hasUnavailable}
                     >
                       Commander
                     </motion.button>
@@ -267,7 +329,7 @@ export function Cart({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem, o
                 <div className="flex-1 overflow-auto p-6 space-y-4">
                   <div className="bg-gray-50 rounded-2xl p-4 text-sm space-y-1">
                     {items.map((item) => (
-                      <div key={item.id} className="flex justify-between gap-4">
+                      <div key={item.key} className="flex justify-between gap-4">
                         <span>
                           {item.name} × {item.quantity}
                         </span>
