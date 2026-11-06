@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import Lightbox from '../components/Lightbox';
 import { Description } from '../components/Description';
 import type { Illustration } from '../content/types';
+import { SmartImg } from '../components/SmartImg';
 
 const font = '"aktiv-grotesk-condensed", sans-serif';
 
@@ -81,7 +82,7 @@ export default function PrintPage({ illustration }: { illustration: Illustration
               animate={{ scale: isHovered ? 1.05 : 1 }}
               transition={{ type: 'spring', stiffness: 150, damping: 20, mass: 1.5 }}
             >
-              <motion.img
+              <SmartImg
                 src={image}
                 alt={illustration.title}
                 className="w-full h-auto"

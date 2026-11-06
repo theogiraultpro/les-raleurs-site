@@ -1,6 +1,7 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
 import { ShoppingCart, Heart } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { SmartImg } from './SmartImg';
 
 interface ProductCardProps {
   id: number;
@@ -100,10 +101,11 @@ export function ProductCard({ id, name, price, image, category, onAddToCart, onT
               ease: [0.43, 0.13, 0.23, 0.96],
             }}
           >
-            <img
+            <SmartImg
               src={image}
               alt={name}
               className="w-full h-full object-cover"
+              lazy
             />
           </motion.div>
 
@@ -179,7 +181,7 @@ export function ProductCard({ id, name, price, image, category, onAddToCart, onT
 
       {/* Liquid Blob Effect */}
       <motion.div
-        className="absolute -inset-4 rounded-full blur-3xl -z-10"
+        className="hidden md:block absolute -inset-4 rounded-full blur-3xl -z-10"
         style={{
           background: 'linear-gradient(to bottom right, #f3e8ff, #fce7f3, #dbeafe)'
         }}

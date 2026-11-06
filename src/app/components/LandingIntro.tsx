@@ -17,6 +17,7 @@ import metroPoster from "@/imports/landing/07-pub-metro.jpg"
 import friche from "@/imports/landing/08-friche-6.jpg"
 import graffeurs from "@/imports/landing/09-graffeurs.jpg"
 import raleursB from "@/imports/landing/10-raleurs-b.png"
+import { SmartImg } from "./SmartImg"
 
 const introImages = [
   {
@@ -100,7 +101,7 @@ function StackedImage({ image, index, progress }: StackedImageProps) {
       }}
       data-cursor-card
     >
-      <img
+      <SmartImg
         src={image.src}
         alt={image.alt}
         className="block h-auto w-full"

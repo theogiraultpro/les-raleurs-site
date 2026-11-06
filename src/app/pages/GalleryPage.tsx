@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, ShoppingCart } from 'lucide-react';
 import Lightbox from '../components/Lightbox';
 import { Description } from '../components/Description';
 import type { GalleryImage } from '../content/types';
+import { SmartImg } from '../components/SmartImg';
 
 const font = '"aktiv-grotesk-condensed", sans-serif';
 
@@ -133,7 +134,7 @@ export default function GalleryPage({ title, subtitle, description, images, shop
                     boxShadow: '0 40px 80px -20px rgba(0, 0, 0, 0.4), 0 20px 40px -10px rgba(0, 0, 0, 0.3)',
                   }}
                 >
-                  <img
+                  <SmartImg
                     src={current.src}
                     alt={`${cleanTitle} - ${current.caption}`}
                     className="w-full h-auto"
@@ -294,7 +295,7 @@ export default function GalleryPage({ title, subtitle, description, images, shop
                           : 'ring-2 ring-gray-200 hover:ring-black hover:shadow-lg'
                       }`}
                     >
-                      <img src={image.src} alt={image.caption} className="w-full h-full object-cover" loading="lazy" />
+                      <SmartImg src={image.src} alt={image.caption} className="w-full h-full object-cover" loading="lazy" />
                     </div>
                     {index === currentIndex && (
                       <motion.div

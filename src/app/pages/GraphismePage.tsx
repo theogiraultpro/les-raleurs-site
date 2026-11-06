@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { useNavigate, useOutletContext } from 'react-router';
 import { PortfolioCard } from '../components/PortfolioCard';
 import { useContent } from '../content/ContentContext';
+import { isPhone } from '../lib/mobile';
 
 
 export default function GraphismePage() {
@@ -71,14 +72,14 @@ export default function GraphismePage() {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.6, duration: 0.8 }}
+            transition={{ delay: isPhone ? 0.2 : 0.6, duration: isPhone ? 0.4 : 0.8 }}
           >
             {projects.map((project, index) => (
               <motion.div
                 key={project.id}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.7 + index * 0.1, duration: 0.5 }}
+                transition={{ delay: isPhone ? 0.25 : 0.7 + index * 0.1, duration: isPhone ? 0.35 : 0.5 }}
               >
                 <PortfolioCard
                   {...project}

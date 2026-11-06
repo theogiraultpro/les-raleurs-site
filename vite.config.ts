@@ -3,6 +3,7 @@ import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { apiDevServer } from './dev/apiDevServer'
+import { mobileImages } from './dev/mobileImages'
 
 export default defineConfig({
   plugins: [
@@ -12,6 +13,8 @@ export default defineConfig({
     tailwindcss(),
     // Routes /api en local (pour tester la page /admin) — sans effet sur le site publié
     apiDevServer(),
+    // Versions allégées des images pour les téléphones (construction uniquement)
+    mobileImages(),
   ],
   resolve: {
     alias: {

@@ -42,7 +42,7 @@ export function Header({ cartCount, onCartClick, favoritesCount, onFavoritesClic
 
   return (
     <>
-    <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md z-50 border-b border-gray-100">
+    <header className="fixed top-0 left-0 right-0 bg-white md:bg-white/80 md:backdrop-blur-md z-50 border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4">
         <div className="relative flex items-center justify-between">
           <motion.button
