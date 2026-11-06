@@ -3,7 +3,7 @@
 // en gouttes qui glissent les unes vers les autres et fusionnent, comme du mercure.
 // Un clic (ou Entrée) la fait éclater en éclaboussure d'encre (contraste façon
 // Sin City), puis on part vers la galerie.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 
 const INK = '#000000';
@@ -286,6 +286,7 @@ function makeSplat(x: number, y: number, r: number, direction: number | null): S
 // ---------- Rendu de l'éclaboussure (animée sur l'accueil, figée sur les autres pages) ----------
 
 export function SplatShapes({ splat, animated }: { splat: Splat; animated: boolean }) {
+  const clipId = `drips-${useId().replace(/:/g, '')}`;
   const from = (scale: number) => (animated ? { scale } : false);
   return (
     <g fill={INK}>
@@ -304,16 +305,25 @@ export function SplatShapes({ splat, animated }: { splat: Splat; animated: boole
         animate={{ scale: 1 }}
         transition={{ duration: 0.24, ease: [0.1, 0.95, 0.3, 1.08] }}
       />
-      {/* Coulures : elles descendent lentement depuis la tache. */}
-      {splat.drips && (
-        <motion.path
-          d={splat.drips}
-          style={{ transformBox: 'fill-box', transformOrigin: '50% 0%' }}
-          initial={animated ? { scaleY: 0 } : false}
-          animate={{ scaleY: 1 }}
-          transition={{ duration: 1.1, delay: 0.15, ease: [0.3, 0.6, 0.4, 1] }}
-        />
-      )}
+      {/* Coulures : elles descendent depuis la tache (révélées de haut en bas, sans écrasement). */}
+      {splat.drips &&
+        (animated ? (
+          <>
+            <clipPath id={clipId}>
+              <motion.rect
+                x={-10000}
+                y={0}
+                width={20000}
+                initial={{ height: 0 }}
+                animate={{ height: 4000 }}
+                transition={{ duration: 6, delay: 0.12, ease: [0.25, 0.1, 0.25, 1] }}
+              />
+            </clipPath>
+            <path d={splat.drips} clipPath={`url(#${clipId})`} />
+          </>
+        ) : (
+          <path d={splat.drips} />
+        ))}
       {/* Impact : la tache dépasse sa taille puis se pose. */}
       <motion.path
         d={splat.core}
