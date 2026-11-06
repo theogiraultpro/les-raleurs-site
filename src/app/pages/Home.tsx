@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { useNavigate, useOutletContext } from 'react-router';
 import { ProductCard } from '../components/ProductCard';
 import { useContent } from '../content/ContentContext';
+import { isPhone } from '../lib/mobile';
 
 
 export default function Home() {
@@ -76,7 +77,7 @@ export default function Home() {
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true, amount: 0.1 }}
-            transition={{ delay: 0.6, duration: 0.8 }}
+            transition={{ delay: isPhone ? 0 : 0.6, duration: isPhone ? 0.4 : 0.8 }}
           >
             {products.map((product, index) => (
               <motion.div
@@ -84,7 +85,7 @@ export default function Home() {
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.15 }}
-                transition={{ delay: 0.7 + index * 0.1, duration: 0.5 }}
+                transition={{ delay: isPhone ? 0.05 : 0.7 + index * 0.1, duration: isPhone ? 0.35 : 0.5 }}
               >
                 <ProductCard
                   {...product}
