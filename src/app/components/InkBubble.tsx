@@ -1,6 +1,8 @@
-// Page d'accueil : une bulle d'encre noire flotte sur la page blanche.
-// Survolée, elle se déforme comme un liquide, d'autant plus que la souris va vite.
-// Un clic (ou Entrée) la fait éclater en tache d'encre style comics, puis on part
+// Page d'accueil : une bulle d'encre noire vivante (inspiration Venom) flotte sur
+// la page blanche. Elle lance des tentacules au hasard, les tend vers la souris,
+// se déforme selon la vitesse du geste et peut être coupée en plusieurs morceaux
+// reliés par des filaments, qui se rattirent et fusionnent.
+// Un clic (ou Entrée) la fait éclater en éclaboussure façon Sin City, puis on part
 // vers la galerie.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
@@ -9,10 +11,17 @@ const INK = '#000000';
 
 type Point = [number, number];
 
+const f2 = (n: number) => n.toFixed(2);
+const rand = (min: number, max: number) => min + Math.random() * (max - min);
+/** Tirage gaussien (bruit organique). */
+function randn(): number {
+  return Math.sqrt(-2 * Math.log(Math.max(1e-9, Math.random()))) * Math.cos(2 * Math.PI * Math.random());
+}
+
 /** Courbe fermée lisse passant par tous les points (Catmull-Rom → Bézier). */
 function smoothClosedPath(points: Point[], tension = 1): string {
   const n = points.length;
-  let d = `M${points[0][0].toFixed(2)},${points[0][1].toFixed(2)}`;
+  let d = `M${f2(points[0][0])},${f2(points[0][1])}`;
   for (let i = 0; i < n; i++) {
     const p0 = points[(i - 1 + n) % n];
     const p1 = points[i];
@@ -22,16 +31,31 @@ function smoothClosedPath(points: Point[], tension = 1): string {
     const c1y = p1[1] + ((p2[1] - p0[1]) / 6) * tension;
     const c2x = p2[0] - ((p3[0] - p1[0]) / 6) * tension;
     const c2y = p2[1] - ((p3[1] - p1[1]) / 6) * tension;
-    d += ` C${c1x.toFixed(2)},${c1y.toFixed(2)} ${c2x.toFixed(2)},${c2y.toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
+    d += ` C${f2(c1x)},${f2(c1y)} ${f2(c2x)},${f2(c2y)} ${f2(p2[0])},${f2(p2[1])}`;
   }
   return `${d} Z`;
 }
 
-/** Nombre de points du contour de la bulle (chacun réagit comme un ressort). */
-const VERTICES = 28;
+/** Polygone à segments droits (bords francs, façon encre découpée). */
+function polygonPath(points: Point[]): string {
+  return `M${points.map(([x, y]) => `${f2(x)},${f2(y)}`).join(' L')} Z`;
+}
 
-/** Contour de la bulle : un cercle qui ondule comme un liquide, déformé par `offsets`. */
-function bubblePath(r: number, t: number, wobble: number, phases: number[], offsets?: Float32Array): string {
+// ---------- Bulle ----------
+
+/** Nombre de points du contour de la bulle (chacun réagit comme un ressort). */
+const VERTICES = 36;
+
+/** Contour de la bulle : ondulation + bruit aléatoire (`noise`) + déformation (`offsets`). */
+function bubblePath(
+  r: number,
+  t: number,
+  wobble: number,
+  phases: number[],
+  offsets?: Float32Array,
+  noise?: Float32Array,
+  noiseAmount = 0,
+): string {
   const points: Point[] = [];
   for (let i = 0; i < VERTICES; i++) {
     const a = (i / VERTICES) * Math.PI * 2;
@@ -41,153 +65,240 @@ function bubblePath(r: number, t: number, wobble: number, phases: number[], offs
         (0.05 * Math.sin(2 * a + t * 1.3 + phases[0]) +
           0.035 * Math.sin(3 * a - t * 1.9 + phases[1]) +
           0.02 * Math.sin(5 * a + t * 2.6 + phases[2]));
-    const radius = r * k + (offsets ? offsets[i] : 0);
+    const radius = r * k + (offsets ? offsets[i] : 0) + (noise ? noise[i] * r * noiseAmount : 0);
     points.push([Math.cos(a) * radius, Math.sin(a) * radius]);
   }
   return smoothClosedPath(points);
 }
 
-// ---------- Tache d'encre, style comics ----------
+interface Tendril {
+  angle: number;
+  length: number;
+  width: number;
+  life: number;
+  age: number;
+  curl: number;
+  phase: number;
+}
+
+/** Tentacule d'encre : part du bord, s'affine et se tord (forme pleine). */
+function tendrilPath(td: Tendril, r: number, t: number): string {
+  const grow = Math.pow(Math.sin(Math.PI * Math.min(1, td.age / td.life)), 0.7);
+  const L = td.length * grow;
+  if (L < r * 0.05) return '';
+  const steps = 10;
+  const left: Point[] = [];
+  const right: Point[] = [];
+  let px = Math.cos(td.angle) * r * 0.75;
+  let py = Math.sin(td.angle) * r * 0.75;
+  for (let s = 0; s <= steps; s++) {
+    const u = s / steps;
+    const dir = td.angle + td.curl * Math.pow(u, 1.4) * Math.sin(t * 3.1 + td.phase + u * 2.5);
+    if (s > 0) {
+      px += Math.cos(dir) * (L / steps + (r * 0.25) / steps);
+      py += Math.sin(dir) * (L / steps + (r * 0.25) / steps);
+    }
+    const w = td.width * Math.pow(1 - u, 1.25) * (0.6 + 0.4 * grow) + r * 0.012;
+    const nx = -Math.sin(dir);
+    const ny = Math.cos(dir);
+    left.push([px + nx * w * 0.5, py + ny * w * 0.5]);
+    right.push([px - nx * w * 0.5, py - ny * w * 0.5]);
+  }
+  return polygonPath([...left, ...right.reverse()]);
+}
+
+/** Filament visqueux entre deux morceaux : épais aux bouts, fin au milieu. */
+function strandPath(ax: number, ay: number, bx: number, by: number, width: number, bend: number): string {
+  const mx = (ax + bx) / 2;
+  const my = (ay + by) / 2;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len;
+  const ny = dx / len;
+  const cx = mx + nx * bend;
+  const cy = my + ny * bend;
+  const steps = 12;
+  const left: Point[] = [];
+  const right: Point[] = [];
+  for (let s = 0; s <= steps; s++) {
+    const u = s / steps;
+    const x = (1 - u) * (1 - u) * ax + 2 * (1 - u) * u * cx + u * u * bx;
+    const y = (1 - u) * (1 - u) * ay + 2 * (1 - u) * u * cy + u * u * by;
+    const tx = 2 * (1 - u) * (cx - ax) + 2 * u * (bx - cx);
+    const ty = 2 * (1 - u) * (cy - ay) + 2 * u * (by - cy);
+    const tl = Math.hypot(tx, ty) || 1;
+    const w = width * (0.28 + 0.72 * Math.pow(2 * u - 1, 2));
+    left.push([x - (ty / tl) * w * 0.5, y + (tx / tl) * w * 0.5]);
+    right.push([x + (ty / tl) * w * 0.5, y - (tx / tl) * w * 0.5]);
+  }
+  return polygonPath([...left, ...right.reverse()]);
+}
+
+/** Un morceau de bulle après une coupure. */
+interface Piece {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  r: number;
+  pull: number;
+  phase: number;
+}
+
+// ---------- Éclaboussure façon Sin City ----------
 
 export interface Splat {
   x: number;
   y: number;
+  /** Impact central, bords anguleux. */
   core: string;
-  /** Bras épais qui s'affinent et finissent en goutte ronde. */
-  arms: Array<{ d: string; delay: number }>;
-  /** Gouttes en forme de larme lancées vers l'extérieur (pointe vers le centre). */
-  tears: Array<{ d: string; x: number; y: number; angle: number; delay: number }>;
-  /** Points ronds. */
-  dots: Array<{ x: number; y: number; r: number; delay: number }>;
+  /** Gerbe de pointes fines en étoile. */
+  spikes: string;
+  /** Longues traînées dans la direction du coup. */
+  streaks: string;
+  /** Éclats irréguliers, regroupés par distance (pour l'animation). */
+  flecks: string[];
 }
 
-const fmt = (n: number) => n.toFixed(2);
+function makeSplat(x: number, y: number, r: number, direction: number | null): Splat {
+  const R = r * 1.8;
+  const dir = direction ?? rand(0, Math.PI * 2);
+  /** Angle tiré de préférence dans la direction du coup. */
+  const aimed = (spread: number, bias: number) =>
+    Math.random() < bias ? dir + randn() * spread : rand(0, Math.PI * 2);
 
-/** Bras d'éclaboussure le long de l'axe x, puis tourné de `angle` (radians). */
-function armPath(start: number, end: number, base: number, neck: number, bulb: number, angle: number): string {
-  const neckX = end - bulb * 1.2;
-  const local: Array<[string, ...Point[]]> = [
-    ['M', [start, -base / 2]],
-    ['C', [start + (neckX - start) * 0.3, -base * 0.16], [neckX - (neckX - start) * 0.35, -neck / 2], [neckX, -neck / 2]],
-  ];
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  const rot = ([px, py]: Point): string => `${fmt(px * cos - py * sin)},${fmt(px * sin + py * cos)}`;
-  let d = '';
-  for (const [cmd, ...pts] of local) d += `${cmd}${pts.map(rot).join(' ')} `;
-  // Goutte au bout du bras.
-  d += `A${fmt(bulb)},${fmt(bulb)} 0 1 1 ${rot([neckX, neck / 2])} `;
-  d += `C${rot([neckX - (neckX - start) * 0.35, neck / 2])} ${rot([start + (neckX - start) * 0.3, base * 0.16])} ${rot([start, base / 2])} Z`;
-  return d;
+  // Impact : contour déchiqueté, mélange de creux et de pointes courtes.
+  const corePts: Point[] = [];
+  const count = 44;
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * Math.PI * 2 + rand(-0.03, 0.03);
+    const toward = Math.cos(a - dir);
+    let k = rand(0.78, 1.08) + 0.12 * toward;
+    if (Math.random() < 0.18) k *= rand(0.7, 0.85); // entaille
+    if (Math.random() < 0.15) k *= rand(1.15, 1.4); // pointe
+    corePts.push([Math.cos(a) * R * k, Math.sin(a) * R * k]);
+  }
+  const core = smoothClosedPath(corePts, 0.35);
+
+  // Pointes : fines, nombreuses, plus longues dans la direction du coup.
+  let spikes = '';
+  for (let i = 0; i < 30; i++) {
+    const a = aimed(0.7, 0.55);
+    const toward = Math.max(0, Math.cos(a - dir));
+    const len = R * rand(0.35, 1.3) * (1 + toward * 1.2);
+    const w = R * rand(0.05, 0.17);
+    const base = R * 0.75;
+    const kink = rand(-0.25, 0.25) * w;
+    const ux = Math.cos(a);
+    const uy = Math.sin(a);
+    const px = -uy;
+    const py = ux;
+    const at = (d: number, side: number): Point => [ux * d + px * side, uy * d + py * side];
+    spikes +=
+      polygonPath([
+        at(base, -w / 2),
+        at(base + len * 0.55, -w * 0.22 + kink),
+        at(base + len, kink * 0.5),
+        at(base + len * 0.55, w * 0.22 + kink),
+        at(base, w / 2),
+      ]) + ' ';
+  }
+
+  // Traînées : longs éclats en pointillés dans l'axe du coup.
+  let streaks = '';
+  const streakCount = Math.round(rand(3, 6));
+  for (let i = 0; i < streakCount; i++) {
+    const a = dir + randn() * 0.16;
+    const ux = Math.cos(a);
+    const uy = Math.sin(a);
+    const px = -uy;
+    const py = ux;
+    const lateral = rand(-0.9, 0.9) * R;
+    let d = R * rand(1.1, 1.8);
+    const total = R * rand(1.6, 4.2);
+    const width = R * rand(0.06, 0.15);
+    const end = d + total;
+    while (d < end) {
+      const seg = Math.min(end - d, R * rand(0.35, 1.2));
+      const left: Point[] = [];
+      const right: Point[] = [];
+      const steps = 7;
+      for (let s = 0; s <= steps; s++) {
+        const u = s / steps;
+        const taper = Math.sin(Math.PI * u) * (1 - ((d - R) / (end - R)) * 0.6);
+        const w = width * taper * rand(0.7, 1.25);
+        const along = d + seg * u;
+        left.push([ux * along + px * (lateral + w / 2), uy * along + py * (lateral + w / 2)]);
+        right.push([ux * along + px * (lateral - w / 2), uy * along + py * (lateral - w / 2)]);
+      }
+      streaks += polygonPath([...left, ...right.reverse()]) + ' ';
+      d += seg + R * rand(0.08, 0.3);
+    }
+  }
+
+  // Éclats : formes irrégulières de toutes tailles, plus denses dans le sens du coup.
+  const bands = ['', '', '', ''];
+  for (let i = 0; i < 130; i++) {
+    const a = aimed(0.65, 0.6);
+    const dist = R * (1.05 + Math.pow(Math.random(), 1.5) * 4.6);
+    const fade = 1.25 - (dist / R - 1.05) / 4.6;
+    const size = R * rand(0.02, 0.13) * Math.max(0.25, fade) * (Math.random() < 0.08 ? 2 : 1);
+    const cx = Math.cos(a) * dist;
+    const cy = Math.sin(a) * dist;
+    const stretchK = rand(1, 1.9);
+    const sides = Math.round(rand(5, 8));
+    const spin = rand(0, Math.PI * 2);
+    const pts: Point[] = [];
+    for (let s = 0; s < sides; s++) {
+      const b = spin + (s / sides) * Math.PI * 2;
+      const rr = size * rand(0.55, 1.15);
+      // Étiré dans le sens de la projection.
+      const lx = Math.cos(b) * rr * stretchK;
+      const ly = Math.sin(b) * rr;
+      pts.push([cx + lx * Math.cos(a) - ly * Math.sin(a), cy + lx * Math.sin(a) + ly * Math.cos(a)]);
+    }
+    const band = Math.min(3, Math.floor(((dist / R - 1.05) / 4.6) * 4));
+    bands[band] += (Math.random() < 0.5 ? polygonPath(pts) : smoothClosedPath(pts, 0.5)) + ' ';
+  }
+
+  return { x, y, core, spikes, streaks, flecks: bands };
 }
 
-/** Goutte en larme : rond en bas, pointe en haut (orientée ensuite). */
-function tearPath(radius: number, length: number): string {
-  const r = radius;
-  const L = length;
-  return `M0,${fmt(-L)} C${fmt(r * 0.55)},${fmt(-L * 0.55)} ${fmt(r)},${fmt(-r * 0.35)} ${fmt(r)},0 A${fmt(r)},${fmt(r)} 0 1 1 ${fmt(-r)},0 C${fmt(-r)},${fmt(-r * 0.35)} ${fmt(-r * 0.55)},${fmt(-L * 0.55)} 0,${fmt(-L)} Z`;
-}
-
-function makeSplat(x: number, y: number, r: number): Splat {
-  const rand = (min: number, max: number) => min + Math.random() * (max - min);
-  const R = r * 1.9;
-
-  // Corps : rond, bords lisses et francs.
-  const ph = [rand(0, 6.3), rand(0, 6.3)];
-  const corePoints: Point[] = Array.from({ length: 18 }, (_, i) => {
-    const a = (i / 18) * Math.PI * 2;
-    const k = 1 + 0.07 * Math.sin(3 * a + ph[0]) + 0.05 * Math.sin(5 * a + ph[1]);
-    return [Math.cos(a) * R * k, Math.sin(a) * R * k];
-  });
-
-  // Bras : répartis autour, longueurs contrastées (quelques longs, beaucoup de courts).
-  const armCount = Math.round(rand(6, 8));
-  const offset = rand(0, Math.PI * 2);
-  const armAngles: number[] = [];
-  const arms = Array.from({ length: armCount }, (_, i) => {
-    const angle = offset + (i / armCount) * Math.PI * 2 + rand(-0.22, 0.22);
-    armAngles.push(angle);
-    const long = Math.random() < 0.35;
-    const end = R * (long ? rand(2.0, 2.5) : rand(1.45, 1.8));
-    const bulb = R * (long ? rand(0.24, 0.32) : rand(0.19, 0.26));
-    return {
-      d: armPath(R * 0.55, end, R * rand(0.75, 1.0), R * rand(0.2, 0.28), bulb, angle),
-      delay: rand(0, 0.05),
-    };
-  });
-
-  // Larmes : dans l'axe de certains bras, plus loin, et entre les bras.
-  const tears = Array.from({ length: Math.round(rand(6, 9)) }, (_, i) => {
-    const angle = i < armCount && Math.random() < 0.6 ? armAngles[i] + rand(-0.08, 0.08) : rand(0, Math.PI * 2);
-    const dist = R * rand(2.5, 3.6);
-    const radius = R * rand(0.1, 0.17);
-    return {
-      d: tearPath(radius, radius * rand(2.4, 3.4)),
-      x: Math.cos(angle) * dist,
-      y: Math.sin(angle) * dist,
-      // Pointe vers le centre : la goutte file vers l'extérieur.
-      angle: (angle * 180) / Math.PI + 90 + 180,
-      delay: rand(0.03, 0.1),
-    };
-  });
-
-  // Points ronds de tailles variées.
-  const dots = Array.from({ length: 16 }, () => {
-    const angle = rand(0, Math.PI * 2);
-    const dist = R * rand(1.45, 3.4);
-    return {
-      x: Math.cos(angle) * dist,
-      y: Math.sin(angle) * dist,
-      r: R * rand(0.025, 0.09),
-      delay: rand(0.02, 0.12),
-    };
-  });
-
-  return { x, y, core: smoothClosedPath(corePoints), arms, tears, dots };
-}
-
-// ---------- Rendu de la tache (animée sur l'accueil, figée sur les autres pages) ----------
+// ---------- Rendu de l'éclaboussure (animée sur l'accueil, figée sur les autres pages) ----------
 
 export function SplatShapes({ splat, animated }: { splat: Splat; animated: boolean }) {
-  const anim = animated;
+  const from = (scale: number) => (animated ? { scale } : false);
   return (
     <g fill={INK}>
-      {/* Impact « pop » : la tache dépasse sa taille puis rebondit. */}
-      <motion.g
-        initial={anim ? { scale: 0.2 } : false}
+      <motion.path
+        d={splat.streaks}
+        initial={from(0.3)}
         animate={{ scale: 1 }}
-        transition={{ type: 'spring', stiffness: 700, damping: 13, mass: 0.7 }}
-      >
-        <path d={splat.core} />
-        {splat.arms.map((arm, i) => (
-          <motion.path
-            key={`a${i}`}
-            d={arm.d}
-            initial={anim ? { scale: 0.35 } : false}
-            animate={{ scale: 1 }}
-            transition={{ delay: arm.delay, type: 'spring', stiffness: 520, damping: 12 }}
-          />
-        ))}
-      </motion.g>
-      {splat.tears.map((tear, i) => (
-        <motion.g
-          key={`t${i}`}
-          initial={anim ? { x: 0, y: 0, scale: 0.3 } : false}
-          animate={{ x: tear.x, y: tear.y, scale: 1 }}
-          transition={{ delay: tear.delay, duration: 0.38, ease: [0.15, 0.85, 0.3, 1.15] }}
-        >
-          <path d={tear.d} transform={`rotate(${tear.angle.toFixed(1)})`} />
-        </motion.g>
-      ))}
-      {splat.dots.map((dot, i) => (
-        <motion.circle
-          key={`p${i}`}
-          r={dot.r}
-          initial={anim ? { cx: 0, cy: 0, scale: 0 } : false}
-          animate={{ cx: dot.x, cy: dot.y, scale: 1 }}
-          transition={{ delay: dot.delay, duration: 0.42, ease: [0.15, 0.85, 0.3, 1.1] }}
+        transition={{ duration: 0.32, ease: [0.1, 0.9, 0.2, 1] }}
+      />
+      {splat.flecks.map((d, i) => (
+        <motion.path
+          key={i}
+          d={d}
+          initial={from(0.2)}
+          animate={{ scale: 1 }}
+          transition={{ duration: 0.24 + i * 0.07, delay: i * 0.015, ease: [0.1, 0.9, 0.25, 1] }}
         />
       ))}
+      <motion.path
+        d={splat.spikes}
+        initial={from(0.15)}
+        animate={{ scale: 1 }}
+        transition={{ duration: 0.2, ease: [0.1, 0.95, 0.3, 1.1] }}
+      />
+      {/* Impact : la tache dépasse sa taille puis se pose. */}
+      <motion.path
+        d={splat.core}
+        initial={from(0.25)}
+        animate={{ scale: 1 }}
+        transition={{ type: 'spring', stiffness: 800, damping: 16, mass: 0.6 }}
+      />
     </g>
   );
 }
@@ -195,34 +306,28 @@ export function SplatShapes({ splat, animated }: { splat: Splat; animated: boole
 // ---------- Composant ----------
 
 interface InkBubbleProps {
-  /** Appelé dès l'éclatement, avec la tache créée. */
+  /** Appelé dès l'éclatement, avec l'éclaboussure créée. */
   onSplat?: (splat: Splat) => void;
-  /** Appelé quand la tache a fini de s'étaler. */
+  /** Appelé quand l'éclaboussure a fini de s'étaler. */
   onBurst: () => void;
 }
 
-/** Bulle coupée en deux : deux moitiés qui s'écartent puis se rattirent. */
-interface Split {
-  // position de la moitié A par rapport au centre (B est symétrique)
-  dx: number;
-  dy: number;
-  vx: number;
-  vy: number;
-  age: number;
-}
+const MAX_PIECES = 4;
+const MAX_TENDRILS = 7;
 
 export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
   const reducedMotion = useReducedMotion() ?? false;
   const buttonRef = useRef<HTMLButtonElement>(null);
   const bodyRef = useRef<SVGGElement>(null);
   const shapeRef = useRef<SVGPathElement>(null);
-  const halfARef = useRef<SVGPathElement>(null);
-  const halfBRef = useRef<SVGPathElement>(null);
+  const tendrilsRef = useRef<SVGPathElement>(null);
+  const strandsRef = useRef<SVGPathElement>(null);
+  const pieceRefs = useRef<Array<SVGPathElement | null>>([]);
   const position = useRef({ x: 0, y: 0 });
   const pointer = useRef({ x: -9999, y: -9999, vx: 0, vy: 0, t: 0 });
   const hovered = useRef(false);
   const burst = useRef(false);
-  const split = useRef<Split | null>(null);
+  const pieces = useRef<Piece[] | null>(null);
   const [radius, setRadius] = useState(56);
   const [splat, setSplat] = useState<Splat | null>(null);
   const [visible, setVisible] = useState(false);
@@ -263,7 +368,7 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
     return () => window.removeEventListener('pointermove', onMove);
   }, []);
 
-  // Dérive lente, ondulation, déformation élastique et coupure, image par image.
+  // Vie de la bulle, image par image (sans repasser par React).
   useEffect(() => {
     let raf = 0;
     let clock = 0;
@@ -274,28 +379,45 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
     let stretch = 0;
     let heading = 0;
     let cooldown = 0;
+    let nextTendril = rand(0.6, 1.6);
     const offsets = new Float32Array(VERTICES);
     const velocities = new Float32Array(VERTICES);
     const smoothed = new Float32Array(VERTICES);
-    const halfR = radius * 0.72; // deux moitiés de même surface totale
+    const noise = new Float32Array(VERTICES);
+    const noiseSmooth = new Float32Array(VERTICES);
+    const tendrils: Tendril[] = [];
+
+    const spawnTendril = (angle: number, length: number) => {
+      if (tendrils.length >= MAX_TENDRILS) return;
+      tendrils.push({
+        angle,
+        length,
+        width: radius * rand(0.12, 0.26),
+        life: rand(0.55, 1.4),
+        age: 0,
+        curl: rand(0.3, 1.1) * (Math.random() < 0.5 ? -1 : 1),
+        phase: rand(0, 6.3),
+      });
+    };
 
     const frame = (now: number) => {
-      const dt = Math.min(0.033, (now - last) / 1000);
+      // Jamais négatif (la première image peut arriver « avant » le départ du chrono).
+      const dt = Math.max(0, Math.min(0.033, (now - last) / 1000));
       last = now;
       if (burst.current) return;
 
       // Au survol, la bulle ralentit pour se laisser attraper.
       const speed = hovered.current ? 0.25 : 1;
       clock += dt * (reducedMotion ? 0 : speed);
-      wobble += ((hovered.current ? 1.25 : 1) - wobble) * Math.min(1, dt * 6);
+      wobble += ((hovered.current ? 1.3 : 1) - wobble) * Math.min(1, dt * 6);
       ripple += dt * (reducedMotion ? 0 : hovered.current ? 2.6 : 1.6);
       cooldown = Math.max(0, cooldown - dt);
 
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const marginX = radius * 1.8;
-      const marginTop = radius * 1.8;
-      const marginBottom = radius * 1.8 + 70; // laisse le logo respirer
+      const marginX = radius * 1.9;
+      const marginTop = radius * 1.9;
+      const marginBottom = radius * 1.9 + 70; // laisse le logo respirer
       const ax = w / 2 - marginX;
       const ay = (h - marginTop - marginBottom) / 2;
       const cy = marginTop + ay;
@@ -315,79 +437,133 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
       stretch += (Math.min(0.1, v / 900) - stretch) * Math.min(1, dt * 4);
       if (v > 4) heading = (Math.atan2(vy, vx) * 180) / Math.PI;
 
+      const p = pointer.current;
+      const dx = p.x - x;
+      const dy = p.y - y;
+      const dist = Math.hypot(dx, dy);
+      const cursorAngle = Math.atan2(dy, dx);
+
       if (!reducedMotion) {
-        const p = pointer.current;
         // La vitesse retombe si la souris s'arrête.
         if (now - p.t > 60) {
           p.vx *= 0.8;
           p.vy *= 0.8;
         }
-        const dx = p.x - x;
-        const dy = p.y - y;
-        const dist = Math.hypot(dx, dy);
         const mouseSpeed = Math.hypot(p.vx, p.vy);
         const mdx = mouseSpeed > 1 ? p.vx / mouseSpeed : 0;
         const mdy = mouseSpeed > 1 ? p.vy / mouseSpeed : 0;
 
-        // ---- Coupure : un geste vif qui traverse le cœur de la bulle la coupe en deux.
-        if (!split.current && cooldown === 0 && mouseSpeed > 1700 && dist < radius * 0.55 && now - p.t < 50) {
-          // Les moitiés partent de part et d'autre de la ligne de coupe.
+        // ---- Bruit organique : le contour n'est jamais deux fois le même.
+        for (let i = 0; i < VERTICES; i++) {
+          noise[i] += -1.4 * noise[i] * dt + (hovered.current ? 1.5 : 1.0) * Math.sqrt(dt) * randn();
+          if (!Number.isFinite(noise[i])) noise[i] = 0;
+        }
+        for (let i = 0; i < VERTICES; i++) {
+          noiseSmooth[i] = noise[i] * 0.5 + (noise[(i - 1 + VERTICES) % VERTICES] + noise[(i + 1) % VERTICES]) * 0.25;
+        }
+
+        // ---- Tentacules : quelques-unes au hasard, beaucoup vers la souris toute proche.
+        nextTendril -= dt;
+        const near = dist < radius * 3.2;
+        if (!pieces.current && nextTendril <= 0) {
+          if (near) {
+            spawnTendril(cursorAngle + randn() * 0.5, Math.min(dist * 0.95, radius * 2.6) * rand(0.55, 1.05));
+            nextTendril = rand(0.08, 0.25);
+          } else {
+            spawnTendril(rand(0, Math.PI * 2), radius * rand(0.6, 1.6));
+            nextTendril = rand(0.5, 1.6);
+          }
+        }
+        for (const td of tendrils) td.age += dt;
+        for (let i = tendrils.length - 1; i >= 0; i--) if (tendrils[i].age >= tendrils[i].life) tendrils.splice(i, 1);
+
+        // ---- Coupure : un geste vif qui traverse le cœur coupe la bulle en morceaux.
+        if (!pieces.current && cooldown === 0 && mouseSpeed > 1600 && dist < radius * 0.6 && now - p.t < 50) {
+          const roll = Math.random();
+          const count = roll < 0.45 ? 2 : roll < 0.8 ? 3 : 4;
+          // Tailles inégales (surface totale conservée).
+          const weights = Array.from({ length: count }, (_, i) => (i === 0 ? rand(1.2, 2.2) : rand(0.4, 1.2)));
+          const total = weights.reduce((sum, value) => sum + value, 0);
           const nx = -mdy;
           const ny = mdx;
-          const kick = Math.min(1400, 350 + mouseSpeed * 0.25);
-          split.current = { dx: nx * radius * 0.25, dy: ny * radius * 0.25, vx: nx * kick, vy: ny * kick, age: 0 };
+          const kick = Math.min(1900, 480 + mouseSpeed * 0.36);
+          pieces.current = weights.map((weight, i) => {
+            const side = i % 2 === 0 ? 1 : -1;
+            const spread = randn() * 0.7;
+            const base = Math.atan2(ny * side, nx * side) + spread;
+            const speedK = i === 0 ? rand(0.15, 0.4) : rand(0.6, 1.3);
+            return {
+              x: Math.cos(base) * radius * 0.2,
+              y: Math.sin(base) * radius * 0.2,
+              vx: Math.cos(base) * kick * speedK + mdx * rand(0, 250),
+              vy: Math.sin(base) * kick * speedK + mdy * rand(0, 250),
+              r: radius * Math.sqrt(weight / total) * 1.03,
+              pull: rand(7, 17),
+              phase: rand(0, 6.3),
+            };
+          });
+          tendrils.length = 0;
           offsets.fill(0);
           velocities.fill(0);
         }
 
-        const sp = split.current;
-        if (sp) {
-          // Les deux moitiés se rattirent comme deux gouttes d'un même liquide.
-          sp.age += dt;
-          const pull = 26;
-          const damp = 3.2;
-          sp.vx += (-pull * sp.dx - damp * sp.vx) * dt;
-          sp.vy += (-pull * sp.dy - damp * sp.vy) * dt;
-          sp.dx += sp.vx * dt;
-          sp.dy += sp.vy * dt;
-          const gap = Math.hypot(sp.dx, sp.dy);
-          // Elles se recollent quand elles sont revenues l'une sur l'autre.
-          if (sp.age > 0.35 && gap < radius * 0.12) {
-            split.current = null;
+        const list = pieces.current;
+        if (list) {
+          // Le plus gros morceau revient au centre, les autres sont rattirés vers lui.
+          const main = list[0];
+          main.vx += (-main.pull * main.x - 3 * main.vx) * dt;
+          main.vy += (-main.pull * main.y - 3 * main.vy) * dt;
+          for (let i = 1; i < list.length; i++) {
+            const piece = list[i];
+            const ox = piece.x - main.x;
+            const oy = piece.y - main.y;
+            // Errance aléatoire, comme une matière vivante.
+            piece.vx += (-piece.pull * ox - 2.1 * piece.vx + randn() * 320) * dt;
+            piece.vy += (-piece.pull * oy - 2.1 * piece.vy + randn() * 320) * dt;
+          }
+          for (const piece of list) {
+            piece.x += piece.vx * dt;
+            piece.y += piece.vy * dt;
+          }
+          // Fusion : un morceau qui touche le corps principal est absorbé.
+          for (let i = list.length - 1; i >= 1; i--) {
+            const piece = list[i];
+            const gap = Math.hypot(piece.x - main.x, piece.y - main.y);
+            const slow = Math.hypot(piece.vx - main.vx, piece.vy - main.vy) < 500;
+            if (gap < main.r * 0.55 && slow) {
+              main.r = Math.sqrt(main.r * main.r + piece.r * piece.r);
+              list.splice(i, 1);
+            }
+          }
+          if (list.length === 1 && Math.hypot(main.x, main.y) < radius * 0.1) {
+            pieces.current = null;
             cooldown = 0.6;
-            // Petit tremblement au moment de la fusion.
-            for (let i = 0; i < VERTICES; i++) velocities[i] += radius * (Math.random() * 6 - 1.5);
+            // Tremblement à la reconstitution.
+            for (let i = 0; i < VERTICES; i++) velocities[i] += radius * rand(-1.5, 5);
           }
         } else {
           // ---- Déformation : plus la souris va vite, plus la bulle se tord.
           const reach = radius * 2.6;
           const influence = Math.max(0, Math.min(1, (reach - dist) / (reach - radius * 0.6)));
-          // Poussée plus que proportionnelle à la vitesse : un passage rapide reste
-          // moins longtemps sur la bulle, il doit donc pousser beaucoup plus fort.
           const force = influence * Math.min(Math.pow(mouseSpeed / 1000, 1.9), 14);
-          const cursorAngle = Math.atan2(dy, dx);
           const stiffness = 150;
           const damping = 8;
           for (let i = 0; i < VERTICES; i++) {
             const a = (i / VERTICES) * Math.PI * 2;
             const ux = Math.cos(a);
             const uy = Math.sin(a);
-            // L'encre est entraînée dans le sens du geste…
             const align = ux * mdx + uy * mdy;
-            // …et tirée vers le curseur là où il la touche.
             let diff = Math.abs(a - cursorAngle) % (Math.PI * 2);
             if (diff > Math.PI) diff = Math.PI * 2 - diff;
-            const near = Math.exp(-(diff * diff) / 0.3);
-            const push = force * radius * (0.65 * align + 0.55 * near * Math.max(0.2, align + 0.6));
+            const close = Math.exp(-(diff * diff) / 0.3);
+            const push = force * radius * (0.65 * align + 0.55 * close * Math.max(0.2, align + 0.6));
             const accel = -stiffness * offsets[i] - damping * velocities[i] + push * 85;
             velocities[i] += accel * dt;
             offsets[i] += velocities[i] * dt;
           }
-          // Tension de surface : chaque point est lissé avec ses voisins.
           for (let i = 0; i < VERTICES; i++) {
-            const prevI = offsets[(i - 1 + VERTICES) % VERTICES];
-            const nextI = offsets[(i + 1) % VERTICES];
-            smoothed[i] = offsets[i] * 0.6 + (prevI + nextI) * 0.2;
+            smoothed[i] =
+              offsets[i] * 0.6 + (offsets[(i - 1 + VERTICES) % VERTICES] + offsets[(i + 1) % VERTICES]) * 0.2;
           }
           for (let i = 0; i < VERTICES; i++) {
             offsets[i] = Math.max(-radius * 0.6, Math.min(radius * 1.9, smoothed[i]));
@@ -395,23 +571,64 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
         }
       }
 
+      // ---- Dessin
       const button = buttonRef.current;
       if (button) button.style.transform = `translate(${x - radius * 1.5}px, ${y - radius * 1.5}px)`;
       bodyRef.current?.setAttribute(
         'transform',
         `rotate(${heading.toFixed(1)}) scale(${(1 + stretch).toFixed(3)} ${(1 - stretch * 0.7).toFixed(3)}) rotate(${(-heading).toFixed(1)})`,
       );
-      const sp = split.current;
-      if (sp) {
+      const list = pieces.current;
+      if (list) {
         shapeRef.current?.setAttribute('d', '');
-        halfARef.current?.setAttribute('d', bubblePath(halfR, ripple * 1.4, 1.6, phases));
-        halfBRef.current?.setAttribute('d', bubblePath(halfR, ripple * 1.4 + 2, 1.6, phases));
-        halfARef.current?.setAttribute('transform', `translate(${sp.dx.toFixed(2)} ${sp.dy.toFixed(2)})`);
-        halfBRef.current?.setAttribute('transform', `translate(${(-sp.dx).toFixed(2)} ${(-sp.dy).toFixed(2)})`);
+        tendrilsRef.current?.setAttribute('d', '');
+        let strands = '';
+        const main = list[0];
+        for (let i = 0; i < MAX_PIECES; i++) {
+          const el = pieceRefs.current[i];
+          const piece = list[i];
+          if (!el) continue;
+          if (!piece) {
+            el.setAttribute('d', '');
+            continue;
+          }
+          el.setAttribute('d', bubblePath(piece.r, ripple * 1.5 + piece.phase, 1.8, phases, undefined, noiseSmooth, 0.12));
+          el.setAttribute('transform', `translate(${f2(piece.x)} ${f2(piece.y)})`);
+          if (i > 0) {
+            // Filaments : s'amincissent avec la distance puis cassent.
+            const gap = Math.hypot(piece.x - main.x, piece.y - main.y) - piece.r - main.r * 0.6;
+            // Plusieurs filaments, du plus épais au plus fin ; les fins cassent les premiers.
+            const fibers: Array<[number, number, number]> = [
+              [0.4, 1, 4.2],
+              [0.22, -1.7, 3.4],
+              [0.12, 2.6, 2.6],
+              [0.06, -0.6, 2],
+            ];
+            for (const [weight, bendK, reachK] of fibers) {
+              const thickness = radius * weight * Math.pow(Math.max(0, 1 - gap / (radius * reachK)), 0.7);
+              if (thickness > radius * 0.018) {
+                const bend = Math.sin(ripple * 2 + piece.phase + bendK) * radius * 0.3 * bendK;
+                strands += strandPath(main.x, main.y, piece.x, piece.y, thickness, bend) + ' ';
+              }
+            }
+            // Filament secondaire entre deux petits morceaux proches.
+            const other = list[i + 1];
+            if (other) {
+              const g2 = Math.hypot(other.x - piece.x, other.y - piece.y) - other.r - piece.r;
+              const t2 = radius * 0.14 * Math.max(0, 1 - g2 / (radius * 2.4));
+              if (t2 > radius * 0.018) strands += strandPath(piece.x, piece.y, other.x, other.y, t2, radius * 0.2) + ' ';
+            }
+          }
+        }
+        strandsRef.current?.setAttribute('d', strands);
       } else {
-        halfARef.current?.setAttribute('d', '');
-        halfBRef.current?.setAttribute('d', '');
-        shapeRef.current?.setAttribute('d', bubblePath(radius, ripple, wobble, phases, offsets));
+        for (const el of pieceRefs.current) el?.setAttribute('d', '');
+        strandsRef.current?.setAttribute('d', '');
+        shapeRef.current?.setAttribute(
+          'd',
+          bubblePath(radius, ripple, wobble, phases, offsets, noiseSmooth, hovered.current ? 0.11 : 0.07),
+        );
+        tendrilsRef.current?.setAttribute('d', tendrils.map((td) => tendrilPath(td, radius, ripple)).join(' '));
       }
       raf = requestAnimationFrame(frame);
     };
@@ -427,22 +644,24 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
     const fromPointer = event.detail > 0;
     const x = fromPointer ? event.clientX : position.current.x;
     const y = fromPointer ? event.clientY : position.current.y;
-    // Petit gonflement avant d'éclater.
+    // Direction du coup : celle du dernier geste, sinon au hasard.
+    const p = pointer.current;
+    const direction = Math.hypot(p.vx, p.vy) > 250 ? Math.atan2(p.vy, p.vx) : null;
     bodyRef.current?.setAttribute('transform', 'scale(1.14)');
     window.setTimeout(() => {
-      const created = makeSplat(x, y, radius);
+      const created = makeSplat(x, y, radius, direction);
       setSplat(created);
       onSplat?.(created);
-    }, reducedMotion ? 0 : 90);
+    }, reducedMotion ? 0 : 80);
     window.setTimeout(onBurst, reducedMotion ? 500 : 1150);
   };
 
   const size = radius * 3;
-  const area = radius * 8;
+  const area = radius * 9;
 
   return (
     <>
-      {/* Tache d'encre style comics (dessin vectoriel : net à toutes les tailles) */}
+      {/* Éclaboussure (dessin vectoriel : nette à toutes les tailles) */}
       {splat && (
         <svg className="pointer-events-none fixed inset-0 h-full w-full" aria-hidden="true" shapeRendering="geometricPrecision">
           <g transform={`translate(${splat.x} ${splat.y})`}>
@@ -476,7 +695,7 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
             style={{ overflow: 'visible' }}
           >
             <defs>
-              {/* Fusion liquide : deux gouttes proches se relient par un pont d'encre. */}
+              {/* Matière liquide : les formes proches se relient par des ponts d'encre. */}
               <filter
                 id={gooId}
                 filterUnits="userSpaceOnUse"
@@ -486,7 +705,7 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
                 height={area * 2}
                 colorInterpolationFilters="sRGB"
               >
-                <feGaussianBlur in="SourceGraphic" stdDeviation={radius * 0.14} result="blur" />
+                <feGaussianBlur in="SourceGraphic" stdDeviation={radius * 0.11} result="blur" />
                 <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 30 -13" />
               </filter>
             </defs>
@@ -494,8 +713,20 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
               <g ref={bodyRef}>
                 <path ref={shapeRef} d={bubblePath(radius, 0, 1, phases)} />
               </g>
-              <path ref={halfARef} d="" />
-              <path ref={halfBRef} d="" />
+              {Array.from({ length: MAX_PIECES }, (_, i) => (
+                <path
+                  key={i}
+                  ref={(el) => {
+                    pieceRefs.current[i] = el;
+                  }}
+                  d=""
+                />
+              ))}
+            </g>
+            {/* Tentacules et filaments : dessinés nets, hors du filtre, pour rester fins. */}
+            <g fill={INK}>
+              <path ref={tendrilsRef} d="" />
+              <path ref={strandsRef} d="" />
             </g>
           </motion.svg>
         </button>
