@@ -127,60 +127,36 @@ function makeSplat(x: number, y: number, r: number, direction: number | null): S
   const aimed = (spread: number, bias: number) =>
     Math.random() < bias ? dir + randn() * spread : rand(0, Math.PI * 2);
 
-  // Impact : bord festonné, cassé par des entailles et de courtes pointes
-  // (contraste dur façon Sin City), étiré dans le sens du coup.
+  // Impact : bord organique festonné, légèrement étiré dans le sens du coup.
   const ph = Array.from({ length: 4 }, () => rand(0, 6.3));
   const corePts: Point[] = [];
-  const count = 72;
+  const count = 64;
   for (let i = 0; i < count; i++) {
-    const a = (i / count) * Math.PI * 2 + rand(-0.015, 0.015);
+    const a = (i / count) * Math.PI * 2;
     const toward = Math.cos(a - dir);
-    let k =
+    const k =
       0.95 +
-      0.12 * toward +
-      0.06 * Math.sin(3 * a + ph[0]) +
-      0.045 * Math.sin(5 * a + ph[1]) +
-      0.03 * Math.sin(11 * a + ph[2]) +
-      rand(-0.04, 0.04);
-    if (Math.random() < 0.14) k *= rand(0.78, 0.9); // entaille
-    if (Math.random() < 0.12) k *= rand(1.12, 1.3); // pointe
+      0.1 * toward +
+      0.07 * Math.sin(3 * a + ph[0]) +
+      0.05 * Math.sin(5 * a + ph[1]) +
+      0.035 * Math.sin(11 * a + ph[2]) +
+      0.02 * Math.sin(19 * a + ph[3]) +
+      rand(-0.02, 0.02);
     corePts.push([Math.cos(a) * R * k, Math.sin(a) * R * k]);
   }
-  const core = smoothClosedPath(corePts, 0.55);
-
-  // Aiguilles : éclats fins et tranchants, surtout projetés dans le sens du coup.
-  let spines = '';
-  const needleCount = Math.round(rand(20, 28));
-  for (let i = 0; i < needleCount; i++) {
-    const a = aimed(0.6, 0.65);
-    const toward = Math.max(0, Math.cos(a - dir));
-    const len = R * rand(0.3, 1.2) * (1 + toward * 1.3);
-    const w = R * rand(0.05, 0.15);
-    const base = R * 0.78;
-    const kink = rand(-0.25, 0.25) * w;
-    const ux = Math.cos(a);
-    const uy = Math.sin(a);
-    const at = (d: number, side: number): Point => [ux * d - uy * side, uy * d + ux * side];
-    spines +=
-      polygonPath([
-        at(base, -w / 2),
-        at(base + len * 0.5, -w * 0.2 + kink),
-        at(base + len, kink * 0.4),
-        at(base + len * 0.5, w * 0.2 + kink),
-        at(base, w / 2),
-      ]) + ' ';
-  }
+  const core = smoothClosedPath(corePts, 0.9);
 
   // Jets : partent du bord, s'affinent en se courbant un peu, finissent en goutte.
+  let spines = '';
   const tips: Array<{ a: number; d: number; head: number }> = [];
-  const spineCount = Math.round(rand(7, 11));
+  const spineCount = Math.round(rand(12, 19));
   for (let i = 0; i < spineCount; i++) {
-    const a = aimed(0.75, 0.55);
+    const a = aimed(0.75, 0.5);
     const toward = Math.max(0, Math.cos(a - dir));
-    const len = R * rand(0.5, 1.5) * (1 + toward * 0.9);
-    const w0 = R * rand(0.14, 0.28);
-    const neck = R * rand(0.022, 0.045);
-    const bend = rand(-0.1, 0.1);
+    const len = R * rand(0.45, 1.5) * (1 + toward * 0.9);
+    const w0 = R * rand(0.14, 0.3);
+    const neck = R * rand(0.025, 0.05);
+    const bend = rand(-0.12, 0.12);
     const start = R * 0.72;
     const steps = 16;
     const left: Point[] = [];
@@ -201,35 +177,9 @@ function makeSplat(x: number, y: number, r: number, direction: number | null): S
       endX = cx;
       endY = cy;
     }
-    const head = Math.max(neck * 1.3, R * rand(0.05, 0.1) * (0.8 + len / (R * 2.5)));
+    const head = Math.max(neck * 1.3, R * rand(0.05, 0.11) * (0.8 + len / (R * 2.5)));
     spines += polygonPath([...left, ...right.reverse()]) + ' ' + circlePath(endX, endY, head) + ' ';
     tips.push({ a: a + bend, d: start + len, head });
-  }
-
-  // Traînées : longs éclats en pointillés dans l'axe du coup.
-  const streakCount = Math.round(rand(2, 4));
-  for (let i = 0; i < streakCount; i++) {
-    const a = dir + randn() * 0.18;
-    const ux = Math.cos(a);
-    const uy = Math.sin(a);
-    const lateral = rand(-0.8, 0.8) * R;
-    let d = R * rand(1.1, 1.6);
-    const end = d + R * rand(1.5, 3.6);
-    const width = R * rand(0.06, 0.13);
-    while (d < end) {
-      const seg = Math.min(end - d, R * rand(0.3, 1));
-      const left: Point[] = [];
-      const right: Point[] = [];
-      for (let s = 0; s <= 7; s++) {
-        const u = s / 7;
-        const w = width * Math.sin(Math.PI * u) * (1 - ((d - R) / (end - R)) * 0.6) * rand(0.75, 1.2);
-        const along = d + seg * u;
-        left.push([ux * along - uy * (lateral + w / 2), uy * along + ux * (lateral + w / 2)]);
-        right.push([ux * along - uy * (lateral - w / 2), uy * along + ux * (lateral - w / 2)]);
-      }
-      spines += polygonPath([...left, ...right.reverse()]) + ' ';
-      d += seg + R * rand(0.08, 0.28);
-    }
   }
 
   const bands = ['', '', '', ''];
@@ -240,7 +190,7 @@ function makeSplat(x: number, y: number, r: number, direction: number | null): S
     if (Math.random() < 0.4) continue;
     let d = tip.d + tip.head * rand(2, 3.5);
     let size = tip.head * rand(0.55, 0.8);
-    const beads = Math.round(rand(2, 5));
+    const beads = Math.round(rand(2, 6));
     for (let k = 0; k < beads && size > R * 0.008; k++) {
       const a = tip.a + randn() * 0.03;
       bands[bandOf(d)] += teardrop(Math.cos(a) * d, Math.sin(a) * d, a, size, size * rand(1.2, 2)) + ' ';
@@ -249,42 +199,39 @@ function makeSplat(x: number, y: number, r: number, direction: number | null): S
     }
   }
 
-  // Éclats anguleux de toutes tailles, étirés dans le sens de la projection.
-  for (let i = 0; i < 70; i++) {
-    const a = aimed(0.65, 0.6);
-    const dist = R * (1.05 + Math.pow(Math.random(), 1.5) * 4.2);
-    const fade = 1.25 - (dist / R - 1.05) / 4.2;
-    const size = R * rand(0.02, 0.11) * Math.max(0.25, fade) * (Math.random() < 0.08 ? 1.8 : 1);
-    const cx = Math.cos(a) * dist;
-    const cy = Math.sin(a) * dist;
-    const stretchK = rand(1, 1.9);
-    const sides = Math.round(rand(5, 8));
-    const spin = rand(0, Math.PI * 2);
-    const pts: Point[] = [];
-    for (let s = 0; s < sides; s++) {
-      const b = spin + (s / sides) * Math.PI * 2;
-      const rr = size * rand(0.55, 1.15);
-      const lx = Math.cos(b) * rr * stretchK;
-      const ly = Math.sin(b) * rr;
-      pts.push([cx + lx * Math.cos(a) - ly * Math.sin(a), cy + lx * Math.sin(a) + ly * Math.cos(a)]);
-    }
-    bands[bandOf(dist)] += (Math.random() < 0.55 ? polygonPath(pts) : smoothClosedPath(pts, 0.5)) + ' ';
-  }
-
   // Larmes isolées, tête vers l'extérieur.
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 16; i++) {
     const a = aimed(0.8, 0.55);
     const d = R * rand(1.5, 3.8);
-    const head = R * rand(0.035, 0.08) * (1.3 - (d / R - 1.5) / 3.8);
+    const head = R * rand(0.035, 0.09) * (1.3 - (d / R - 1.5) / 3.8);
     bands[bandOf(d)] += teardrop(Math.cos(a) * d, Math.sin(a) * d, a, head, head * rand(1.6, 3.4)) + ' ';
   }
 
+  // Petites taches rondes et irrégulières près de l'impact.
+  for (let i = 0; i < 14; i++) {
+    const a = rand(0, Math.PI * 2);
+    const d = R * rand(1.05, 1.6);
+    const sr = R * rand(0.04, 0.14);
+    const cx = Math.cos(a) * d;
+    const cy = Math.sin(a) * d;
+    const pts: Point[] = Array.from({ length: 9 }, (_, k) => {
+      const b = (k / 9) * Math.PI * 2;
+      const rr = sr * rand(0.8, 1.15);
+      return [cx + Math.cos(b) * rr, cy + Math.sin(b) * rr];
+    });
+    bands[0] += smoothClosedPath(pts) + ' ';
+  }
+
   // Bruine : micro-gouttes, plus denses dans le sens du coup.
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 90; i++) {
     const a = aimed(0.7, 0.6);
     const d = R * (1.2 + Math.pow(Math.random(), 1.4) * 4);
-    const size = Math.max(0.7, R * rand(0.006, 0.025) * (1.4 - (d / R - 1.2) / 4));
-    bands[bandOf(d)] += circlePath(Math.cos(a) * d, Math.sin(a) * d, size) + ' ';
+    const size = Math.max(0.7, R * rand(0.006, 0.03) * (1.4 - (d / R - 1.2) / 4));
+    const stretchK = rand(1, 1.7);
+    const cx = Math.cos(a) * d;
+    const cy = Math.sin(a) * d;
+    if (stretchK > 1.3) bands[bandOf(d)] += teardrop(cx, cy, a, size, size * stretchK * 1.6) + ' ';
+    else bands[bandOf(d)] += circlePath(cx, cy, size) + ' ';
   }
 
   return { x, y, core, spines, flecks: bands };
