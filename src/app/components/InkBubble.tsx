@@ -1,6 +1,7 @@
 // Page d'accueil : une bulle d'encre noire flotte sur la page blanche.
 // Survolée, elle se déforme comme un liquide, d'autant plus que la souris va vite.
-// Un clic (ou Entrée) la fait éclater en tache d'encre, puis on part vers la galerie.
+// Un clic (ou Entrée) la fait éclater en tache d'encre style comics, puis on part
+// vers la galerie.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 
@@ -46,90 +47,103 @@ function bubblePath(r: number, t: number, wobble: number, phases: number[], offs
   return smoothClosedPath(points);
 }
 
-// ---------- Tache d'encre ----------
+// ---------- Tache d'encre, style comics ----------
 
 interface Splat {
   x: number;
   y: number;
-  stain: string;
-  satellites: Array<{ d: string; delay: number }>;
-  drops: Array<{ dx: number; dy: number; rx: number; ry: number; angle: number; delay: number; duration: number }>;
+  core: string;
+  /** Bras épais qui s'affinent et finissent en goutte ronde. */
+  arms: Array<{ d: string; delay: number }>;
+  /** Gouttes en forme de larme lancées vers l'extérieur (pointe vers le centre). */
+  tears: Array<{ d: string; x: number; y: number; angle: number; delay: number }>;
+  /** Points ronds. */
+  dots: Array<{ x: number; y: number; r: number; delay: number }>;
 }
 
-/** Rayon interpolé sur un contour fermé (Catmull-Rom périodique). */
-function periodicRadius(radii: number[], position: number): number {
-  const n = radii.length;
-  const i = Math.floor(position);
-  const t = position - i;
-  const p0 = radii[(i - 1 + n) % n];
-  const p1 = radii[i % n];
-  const p2 = radii[(i + 1) % n];
-  const p3 = radii[(i + 2) % n];
-  return (
-    0.5 *
-    (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t)
-  );
+const fmt = (n: number) => n.toFixed(2);
+
+/** Bras d'éclaboussure le long de l'axe x, puis tourné de `angle` (radians). */
+function armPath(start: number, end: number, base: number, neck: number, bulb: number, angle: number): string {
+  const neckX = end - bulb * 1.2;
+  const local: Array<[string, ...Point[]]> = [
+    ['M', [start, -base / 2]],
+    ['C', [start + (neckX - start) * 0.3, -base * 0.16], [neckX - (neckX - start) * 0.35, -neck / 2], [neckX, -neck / 2]],
+  ];
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const rot = ([px, py]: Point): string => `${fmt(px * cos - py * sin)},${fmt(px * sin + py * cos)}`;
+  let d = '';
+  for (const [cmd, ...pts] of local) d += `${cmd}${pts.map(rot).join(' ')} `;
+  // Goutte au bout du bras.
+  d += `A${fmt(bulb)},${fmt(bulb)} 0 1 1 ${rot([neckX, neck / 2])} `;
+  d += `C${rot([neckX - (neckX - start) * 0.35, neck / 2])} ${rot([start + (neckX - start) * 0.3, base * 0.16])} ${rot([start, base / 2])} Z`;
+  return d;
+}
+
+/** Goutte en larme : rond en bas, pointe en haut (orientée ensuite). */
+function tearPath(radius: number, length: number): string {
+  const r = radius;
+  const L = length;
+  return `M0,${fmt(-L)} C${fmt(r * 0.55)},${fmt(-L * 0.55)} ${fmt(r)},${fmt(-r * 0.35)} ${fmt(r)},0 A${fmt(r)},${fmt(r)} 0 1 1 ${fmt(-r)},0 C${fmt(-r)},${fmt(-r * 0.35)} ${fmt(-r * 0.55)},${fmt(-L * 0.55)} 0,${fmt(-L)} Z`;
 }
 
 function makeSplat(x: number, y: number, r: number): Splat {
   const rand = (min: number, max: number) => min + Math.random() * (max - min);
+  const R = r * 1.9;
 
-  // Forme générale : contour irrégulier avec quelques coulures en lobe.
-  const count = 36;
-  const base = r * 2.3;
-  const radii = Array.from({ length: count }, () => base * rand(0.82, 1.08));
-  const spikes = new Set<number>();
-  while (spikes.size < 5) spikes.add(Math.floor(Math.random() * count));
-  for (const i of spikes) {
-    const reach = rand(1.35, 1.95);
-    radii[i] = base * reach;
-    radii[(i + 1) % count] = Math.max(radii[(i + 1) % count], base * (1 + (reach - 1) * 0.45));
-    radii[(i - 1 + count) % count] = Math.max(radii[(i - 1 + count) % count], base * (1 + (reach - 1) * 0.45));
-  }
-
-  // Bord précis : 4 fois plus de points, avec de fines irrégularités d'encre.
-  const fine = count * 4;
-  const ph = [rand(0, 6.3), rand(0, 6.3), rand(0, 6.3)];
-  const stainPoints: Point[] = Array.from({ length: fine }, (_, j) => {
-    const a = (j / fine) * Math.PI * 2;
-    const detail =
-      1 + 0.022 * Math.sin(23 * a + ph[0]) + 0.014 * Math.sin(41 * a + ph[1]) + 0.008 * Math.sin(67 * a + ph[2]) + rand(-0.01, 0.01);
-    const radius = periodicRadius(radii, (j / fine) * count) * detail;
-    return [Math.cos(a) * radius, Math.sin(a) * radius];
+  // Corps : rond, bords lisses et francs.
+  const ph = [rand(0, 6.3), rand(0, 6.3)];
+  const corePoints: Point[] = Array.from({ length: 18 }, (_, i) => {
+    const a = (i / 18) * Math.PI * 2;
+    const k = 1 + 0.07 * Math.sin(3 * a + ph[0]) + 0.05 * Math.sin(5 * a + ph[1]);
+    return [Math.cos(a) * R * k, Math.sin(a) * R * k];
   });
 
-  // Petites taches collées au bord.
-  const satellites = Array.from({ length: 5 }, () => {
-    const a = rand(0, Math.PI * 2);
-    const dist = base * rand(1.05, 1.45);
-    const sr = r * rand(0.18, 0.42);
-    const cx = Math.cos(a) * dist;
-    const cy = Math.sin(a) * dist;
-    const pts: Point[] = Array.from({ length: 18 }, (_, i) => {
-      const b2 = (i / 18) * Math.PI * 2;
-      const rr = sr * (1 + 0.12 * Math.sin(3 * b2 + a) + rand(-0.05, 0.05));
-      return [cx + Math.cos(b2) * rr, cy + Math.sin(b2) * rr];
-    });
-    return { d: smoothClosedPath(pts), delay: rand(0.04, 0.12) };
-  });
-
-  // Gouttelettes projetées, étirées dans le sens de la projection.
-  const drops = Array.from({ length: 26 }, () => {
-    const a = rand(0, Math.PI * 2);
-    const dist = r * rand(2.6, 7.5);
-    const size = r * rand(0.05, 0.2) * (1.6 - dist / (r * 7.5));
+  // Bras : répartis autour, longueurs contrastées (quelques longs, beaucoup de courts).
+  const armCount = Math.round(rand(6, 8));
+  const offset = rand(0, Math.PI * 2);
+  const armAngles: number[] = [];
+  const arms = Array.from({ length: armCount }, (_, i) => {
+    const angle = offset + (i / armCount) * Math.PI * 2 + rand(-0.22, 0.22);
+    armAngles.push(angle);
+    const long = Math.random() < 0.35;
+    const end = R * (long ? rand(2.0, 2.5) : rand(1.45, 1.8));
+    const bulb = R * (long ? rand(0.24, 0.32) : rand(0.19, 0.26));
     return {
-      dx: Math.cos(a) * dist,
-      dy: Math.sin(a) * dist,
-      rx: size * rand(1.2, 2.4),
-      ry: size,
-      angle: (a * 180) / Math.PI,
-      delay: rand(0, 0.06),
-      duration: rand(0.28, 0.5),
+      d: armPath(R * 0.55, end, R * rand(0.75, 1.0), R * rand(0.2, 0.28), bulb, angle),
+      delay: rand(0, 0.05),
     };
   });
 
-  return { x, y, stain: smoothClosedPath(stainPoints), satellites, drops };
+  // Larmes : dans l'axe de certains bras, plus loin, et entre les bras.
+  const tears = Array.from({ length: Math.round(rand(6, 9)) }, (_, i) => {
+    const angle = i < armCount && Math.random() < 0.6 ? armAngles[i] + rand(-0.08, 0.08) : rand(0, Math.PI * 2);
+    const dist = R * rand(2.5, 3.6);
+    const radius = R * rand(0.1, 0.17);
+    return {
+      d: tearPath(radius, radius * rand(2.4, 3.4)),
+      x: Math.cos(angle) * dist,
+      y: Math.sin(angle) * dist,
+      // Pointe vers le centre : la goutte file vers l'extérieur.
+      angle: (angle * 180) / Math.PI + 90 + 180,
+      delay: rand(0.03, 0.1),
+    };
+  });
+
+  // Points ronds de tailles variées.
+  const dots = Array.from({ length: 16 }, () => {
+    const angle = rand(0, Math.PI * 2);
+    const dist = R * rand(1.45, 3.4);
+    return {
+      x: Math.cos(angle) * dist,
+      y: Math.sin(angle) * dist,
+      r: R * rand(0.025, 0.09),
+      delay: rand(0.02, 0.12),
+    };
+  });
+
+  return { x, y, core: smoothClosedPath(corePoints), arms, tears, dots };
 }
 
 // ---------- Composant ----------
@@ -313,36 +327,46 @@ export function InkBubble({ onBurst }: InkBubbleProps) {
 
   return (
     <>
-      {/* Tache d'encre laissée sur le fond (dessin vectoriel : net à toutes les tailles) */}
+      {/* Tache d'encre style comics (dessin vectoriel : net à toutes les tailles) */}
       {splat && (
         <svg className="pointer-events-none fixed inset-0 h-full w-full" aria-hidden="true" shapeRendering="geometricPrecision">
           <g transform={`translate(${splat.x} ${splat.y})`} fill={INK}>
-            <motion.path
-              d={splat.stain}
-              initial={reducedMotion ? false : { scale: 0.25 }}
+            {/* Impact « pop » : la tache dépasse sa taille puis rebondit. */}
+            <motion.g
+              initial={reducedMotion ? false : { scale: 0.2 }}
               animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 520, damping: 26, mass: 0.6 }}
-            />
-            {splat.satellites.map((s, i) => (
-              <motion.path
-                key={`s${i}`}
-                d={s.d}
-                initial={reducedMotion ? false : { scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: s.delay, type: 'spring', stiffness: 600, damping: 22 }}
-              />
-            ))}
-            {!reducedMotion &&
-              splat.drops.map((drop, i) => (
-                <motion.ellipse
-                  key={`d${i}`}
-                  rx={drop.rx}
-                  ry={drop.ry}
-                  initial={{ x: 0, y: 0, rotate: drop.angle, scale: 0.4 }}
-                  animate={{ x: drop.dx, y: drop.dy, rotate: drop.angle, scale: 1 }}
-                  transition={{ delay: drop.delay, duration: drop.duration, ease: [0.12, 0.8, 0.25, 1] }}
+              transition={{ type: 'spring', stiffness: 700, damping: 13, mass: 0.7 }}
+            >
+              <path d={splat.core} />
+              {splat.arms.map((arm, i) => (
+                <motion.path
+                  key={`a${i}`}
+                  d={arm.d}
+                  initial={reducedMotion ? false : { scale: 0.35 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: arm.delay, type: 'spring', stiffness: 520, damping: 12 }}
                 />
               ))}
+            </motion.g>
+            {splat.tears.map((tear, i) => (
+              <motion.g
+                key={`t${i}`}
+                initial={reducedMotion ? false : { x: 0, y: 0, scale: 0.3 }}
+                animate={{ x: tear.x, y: tear.y, scale: 1 }}
+                transition={{ delay: tear.delay, duration: 0.38, ease: [0.15, 0.85, 0.3, 1.15] }}
+              >
+                <path d={tear.d} transform={`rotate(${tear.angle.toFixed(1)})`} />
+              </motion.g>
+            ))}
+            {splat.dots.map((dot, i) => (
+              <motion.circle
+                key={`p${i}`}
+                r={dot.r}
+                initial={reducedMotion ? false : { cx: 0, cy: 0, scale: 0 }}
+                animate={{ cx: dot.x, cy: dot.y, scale: 1 }}
+                transition={{ delay: dot.delay, duration: 0.42, ease: [0.15, 0.85, 0.3, 1.1] }}
+              />
+            ))}
           </g>
         </svg>
       )}
