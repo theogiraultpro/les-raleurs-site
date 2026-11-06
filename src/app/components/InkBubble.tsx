@@ -146,7 +146,8 @@ function makeSplat(x: number, y: number, r: number, direction: number | null): S
   }
   const core = smoothClosedPath(corePts, 0.9);
 
-  // Jets : partent du bord, s'affinent en se courbant un peu, finissent en goutte.
+  // Jets : naissent à l'intérieur de l'impact (raccord arrondi, aucun trou),
+  // s'affinent en se courbant un peu et finissent en pointe.
   let spines = '';
   const tips: Array<{ a: number; d: number; head: number }> = [];
   const spineCount = Math.round(rand(12, 19));
@@ -154,22 +155,24 @@ function makeSplat(x: number, y: number, r: number, direction: number | null): S
     const a = aimed(0.75, 0.5);
     const toward = Math.max(0, Math.cos(a - dir));
     const len = R * rand(0.45, 1.5) * (1 + toward * 0.9);
-    const w0 = R * rand(0.14, 0.3);
-    const neck = R * rand(0.025, 0.05);
+    const w0 = R * rand(0.12, 0.26);
     const bend = rand(-0.12, 0.12);
-    const start = R * 0.72;
-    const steps = 16;
+    const start = R * 0.45;
+    const edge = R * 0.85;
+    const end = edge + len;
+    const steps = 24;
     const left: Point[] = [];
     const right: Point[] = [];
     let endX = 0;
     let endY = 0;
     for (let s2 = 0; s2 <= steps; s2++) {
-      const u = s2 / steps;
+      const d = start + ((end - start) * s2) / steps;
+      const u = Math.min(1, Math.max(0, (d - edge) / len));
       const ang = a + bend * u * u;
-      const d = start + len * u;
       const cx = Math.cos(ang) * d;
       const cy = Math.sin(ang) * d;
-      const w = w0 * Math.pow(1 - u, 2.4) + neck;
+      // Corps qui s'effile jusqu'à la pointe + évasement au raccord avec l'impact.
+      const w = w0 * Math.pow(1 - u, 1.7) + w0 * 0.9 * Math.exp(-Math.max(0, d - edge) / (R * 0.12));
       const nx = -Math.sin(ang);
       const ny = Math.cos(ang);
       left.push([cx + nx * w * 0.5, cy + ny * w * 0.5]);
@@ -177,9 +180,8 @@ function makeSplat(x: number, y: number, r: number, direction: number | null): S
       endX = cx;
       endY = cy;
     }
-    const head = Math.max(neck * 1.3, R * rand(0.05, 0.11) * (0.8 + len / (R * 2.5)));
-    spines += polygonPath([...left, ...right.reverse()]) + ' ' + circlePath(endX, endY, head) + ' ';
-    tips.push({ a: a + bend, d: start + len, head });
+    spines += polygonPath([...left, ...right.reverse()]) + ' ';
+    tips.push({ a: a + bend, d: Math.hypot(endX, endY), head: R * rand(0.03, 0.06) });
   }
 
   const bands = ['', '', '', ''];
