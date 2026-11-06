@@ -3,6 +3,9 @@ import { ShoppingCart, Heart } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { responsiveImage } from '../lib/image';
 
+/** Largeur d'affichage des cartes de la galerie (partagée avec le préchargement de l'accueil). */
+export const GALLERY_CARD_SIZES = '(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw';
+
 interface ProductCardProps {
   id: number;
   name: string;
@@ -13,9 +16,11 @@ interface ProductCardProps {
   onToggleFavorite?: () => void;
   isFavorite?: boolean;
   onClick: () => void;
+  /** Première rangée : image chargée tout de suite, en priorité. */
+  priority?: boolean;
 }
 
-export function ProductCard({ id, name, price, image, category, onAddToCart, onToggleFavorite, isFavorite = false, onClick }: ProductCardProps) {
+export function ProductCard({ id, name, price, image, category, onAddToCart, onToggleFavorite, isFavorite = false, onClick, priority }: ProductCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -102,9 +107,10 @@ export function ProductCard({ id, name, price, image, category, onAddToCart, onT
             }}
           >
             <img
-              {...responsiveImage(image, '(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw', 960)}
+              {...responsiveImage(image, GALLERY_CARD_SIZES, 960)}
               alt={name}
-              loading="lazy"
+              loading={priority ? 'eager' : 'lazy'}
+              fetchPriority={priority ? 'high' : 'auto'}
               className="w-full h-full object-cover"
             />
           </motion.div>

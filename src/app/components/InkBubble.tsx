@@ -1,6 +1,6 @@
 // Page d'accueil : une bulle d'encre noire flotte sur la page blanche et se déforme
-// selon la vitesse de la souris. Coupée d'un geste vif, elle se sépare en morceaux
-// qui se lancent des tentacules et se reconstituent (inspiration Venom).
+// selon la vitesse de la souris (ou du doigt). Coupée d'un geste vif, elle se sépare
+// en gouttes qui glissent les unes vers les autres et fusionnent, comme du mercure.
 // Un clic (ou Entrée) la fait éclater en éclaboussure d'encre (contraste façon
 // Sin City), puis on part vers la galerie.
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -70,79 +70,6 @@ function bubblePath(
   return smoothClosedPath(points);
 }
 
-interface Tendril {
-  /** Morceau d'où part la tentacule, et celui qu'elle vise. */
-  src?: Piece;
-  dst?: Piece;
-  aim: number;
-  /** Point de départ (centre du morceau) et rayon de ce morceau. */
-  ox: number;
-  oy: number;
-  baseR: number;
-  angle: number;
-  length: number;
-  width: number;
-  life: number;
-  age: number;
-  curl: number;
-  phase: number;
-}
-
-/** Tentacule d'encre : part du bord, s'affine et se tord (forme pleine). */
-function tendrilPath(td: Tendril, t: number): string {
-  const r = td.baseR;
-  const grow = Math.pow(Math.sin(Math.PI * Math.min(1, td.age / td.life)), 0.7);
-  const L = td.length * grow;
-  if (L < r * 0.05) return '';
-  const steps = 10;
-  const left: Point[] = [];
-  const right: Point[] = [];
-  let px = td.ox + Math.cos(td.angle) * r * 0.7;
-  let py = td.oy + Math.sin(td.angle) * r * 0.7;
-  for (let s = 0; s <= steps; s++) {
-    const u = s / steps;
-    const dir = td.angle + td.curl * Math.pow(u, 1.4) * Math.sin(t * 3.1 + td.phase + u * 2.5);
-    if (s > 0) {
-      px += Math.cos(dir) * (L / steps + (r * 0.25) / steps);
-      py += Math.sin(dir) * (L / steps + (r * 0.25) / steps);
-    }
-    const w = td.width * Math.pow(1 - u, 1.25) * (0.6 + 0.4 * grow) + r * 0.012;
-    const nx = -Math.sin(dir);
-    const ny = Math.cos(dir);
-    left.push([px + nx * w * 0.5, py + ny * w * 0.5]);
-    right.push([px - nx * w * 0.5, py - ny * w * 0.5]);
-  }
-  return polygonPath([...left, ...right.reverse()]);
-}
-
-/** Filament visqueux entre deux morceaux : épais aux bouts, fin au milieu. */
-function strandPath(ax: number, ay: number, bx: number, by: number, width: number, bend: number): string {
-  const mx = (ax + bx) / 2;
-  const my = (ay + by) / 2;
-  const dx = bx - ax;
-  const dy = by - ay;
-  const len = Math.hypot(dx, dy) || 1;
-  const nx = -dy / len;
-  const ny = dx / len;
-  const cx = mx + nx * bend;
-  const cy = my + ny * bend;
-  const steps = 12;
-  const left: Point[] = [];
-  const right: Point[] = [];
-  for (let s = 0; s <= steps; s++) {
-    const u = s / steps;
-    const x = (1 - u) * (1 - u) * ax + 2 * (1 - u) * u * cx + u * u * bx;
-    const y = (1 - u) * (1 - u) * ay + 2 * (1 - u) * u * cy + u * u * by;
-    const tx = 2 * (1 - u) * (cx - ax) + 2 * u * (bx - cx);
-    const ty = 2 * (1 - u) * (cy - ay) + 2 * u * (by - cy);
-    const tl = Math.hypot(tx, ty) || 1;
-    const w = width * (0.28 + 0.72 * Math.pow(2 * u - 1, 2));
-    left.push([x - (ty / tl) * w * 0.5, y + (tx / tl) * w * 0.5]);
-    right.push([x + (ty / tl) * w * 0.5, y - (tx / tl) * w * 0.5]);
-  }
-  return polygonPath([...left, ...right.reverse()]);
-}
-
 /** Un morceau de bulle après une coupure. */
 interface Piece {
   x: number;
@@ -152,6 +79,8 @@ interface Piece {
   r: number;
   pull: number;
   phase: number;
+  /** Délai avant d'être rattiré (les morceaux reviennent les uns après les autres). */
+  wait: number;
 }
 
 // ---------- Éclaboussure (encre projetée, contraste façon Sin City) ----------
@@ -350,18 +279,17 @@ interface InkBubbleProps {
 }
 
 const MAX_PIECES = 4;
-const MAX_TENDRILS = 14;
 
 export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
   const reducedMotion = useReducedMotion() ?? false;
   const buttonRef = useRef<HTMLButtonElement>(null);
   const bodyRef = useRef<SVGGElement>(null);
   const shapeRef = useRef<SVGPathElement>(null);
-  const tendrilsRef = useRef<SVGPathElement>(null);
-  const strandsRef = useRef<SVGPathElement>(null);
+  const blurRef = useRef<SVGFEGaussianBlurElement>(null);
+  const tapStart = useRef<{ x: number; y: number } | null>(null);
   const pieceRefs = useRef<Array<SVGPathElement | null>>([]);
   const position = useRef({ x: 0, y: 0 });
-  const pointer = useRef({ x: -9999, y: -9999, vx: 0, vy: 0, t: 0 });
+  const pointer = useRef({ x: -9999, y: -9999, lx: -9999, ly: -9999, vx: 0, vy: 0, t: 0, touch: false });
   const hovered = useRef(false);
   const burst = useRef(false);
   const pieces = useRef<Piece[] | null>(null);
@@ -392,17 +320,40 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
       const p = pointer.current;
       const now = performance.now();
       const dt = Math.max(1, now - p.t) / 1000;
-      if (p.t && dt < 0.2) {
-        // Vitesse lissée, en pixels par seconde.
-        p.vx = p.vx * 0.5 + ((event.clientX - p.x) / dt) * 0.5;
-        p.vy = p.vy * 0.5 + ((event.clientY - p.y) / dt) * 0.5;
+      const fresh = p.t && dt < 0.2 && p.x > -9000;
+      if (fresh) {
+        // Vitesse lissée, en pixels par seconde (moins lissée au doigt, plus réactive).
+        const keep = event.pointerType === 'mouse' ? 0.5 : 0.25;
+        p.vx = p.vx * keep + ((event.clientX - p.x) / dt) * (1 - keep);
+        p.vy = p.vy * keep + ((event.clientY - p.y) / dt) * (1 - keep);
       }
+      // Position précédente : sert à savoir si le geste a traversé la bulle.
+      p.lx = fresh ? p.x : event.clientX;
+      p.ly = fresh ? p.y : event.clientY;
       p.x = event.clientX;
       p.y = event.clientY;
       p.t = now;
+      p.touch = event.pointerType !== 'mouse';
+    };
+    // Doigt levé : plus rien ne touche la bulle.
+    const onRelease = (event: PointerEvent) => {
+      if (event.pointerType === 'mouse') return;
+      const p = pointer.current;
+      p.x = -9999;
+      p.y = -9999;
+      p.lx = -9999;
+      p.ly = -9999;
+      p.vx = 0;
+      p.vy = 0;
     };
     window.addEventListener('pointermove', onMove);
-    return () => window.removeEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onRelease);
+    window.addEventListener('pointercancel', onRelease);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onRelease);
+      window.removeEventListener('pointercancel', onRelease);
+    };
   }, []);
 
   // Vie de la bulle, image par image (sans repasser par React).
@@ -416,36 +367,11 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
     let stretch = 0;
     let heading = 0;
     let cooldown = 0;
-    let nextTendril = rand(0.6, 1.6);
     const offsets = new Float32Array(VERTICES);
     const velocities = new Float32Array(VERTICES);
     const smoothed = new Float32Array(VERTICES);
     const noise = new Float32Array(VERTICES);
     const noiseSmooth = new Float32Array(VERTICES);
-    const tendrils: Tendril[] = [];
-
-    /** Tentacule d'un morceau vers un autre (seulement pendant la reconstitution). */
-    const spawnTendril = (from: Piece, to: Piece) => {
-      if (tendrils.length >= MAX_TENDRILS) return;
-      const dx = to.x - from.x;
-      const dy = to.y - from.y;
-      const gap = Math.max(0, Math.hypot(dx, dy) - from.r * 0.7);
-      tendrils.push({
-        src: from,
-        dst: to,
-        aim: randn() * 0.35,
-        ox: from.x,
-        oy: from.y,
-        baseR: from.r,
-        angle: Math.atan2(dy, dx) + randn() * 0.35,
-        length: gap * rand(0.45, 1.05),
-        width: from.r * rand(0.18, 0.34),
-        life: rand(0.35, 0.8),
-        age: 0,
-        curl: rand(0.3, 1) * (Math.random() < 0.5 ? -1 : 1),
-        phase: rand(0, 6.3),
-      });
-    };
 
     const frame = (now: number) => {
       // Jamais négatif (la première image peut arriver « avant » le départ du chrono).
@@ -509,34 +435,20 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
           noiseSmooth[i] = noise[i] * 0.5 + (noise[(i - 1 + VERTICES) % VERTICES] + noise[(i + 1) % VERTICES]) * 0.25;
         }
 
-        // ---- Tentacules (uniquement quand la bulle est coupée) : les morceaux se lancent
-        // des filaments pour s'agripper et se recoller.
-        nextTendril -= dt;
-        const cut = pieces.current;
-        if (cut && cut.length > 1 && nextTendril <= 0) {
-          const i = 1 + Math.floor(Math.random() * (cut.length - 1));
-          if (Math.random() < 0.5) spawnTendril(cut[i], cut[0]);
-          else spawnTendril(cut[0], cut[i]);
-          nextTendril = rand(0.04, 0.12);
-        }
-        for (const td of tendrils) {
-          td.age += dt;
-          // La tentacule suit son morceau et vise toujours sa cible.
-          if (td.src && td.dst) {
-            td.ox = td.src.x;
-            td.oy = td.src.y;
-            td.baseR = td.src.r;
-            td.angle = Math.atan2(td.dst.y - td.src.y, td.dst.x - td.src.x) + td.aim;
-          }
-        }
-        for (let i = tendrils.length - 1; i >= 0; i--) {
-          const td = tendrils[i];
-          const gone = td.src && pieces.current && !pieces.current.includes(td.src);
-          if (td.age >= td.life || gone) tendrils.splice(i, 1);
-        }
-
         // ---- Coupure : un geste vif qui traverse le cœur coupe la bulle en morceaux.
-        if (!pieces.current && cooldown === 0 && mouseSpeed > 1600 && dist < radius * 0.6 && now - p.t < 50) {
+        // Un doigt sur un petit écran va moins vite (en pixels) qu'une souris.
+        const cutSpeed = p.touch ? radius * 13 : Math.min(1600, radius * 30);
+        // Distance entre le centre et le trajet du dernier geste (pas seulement sa position :
+        // un geste rapide peut « sauter » par-dessus le centre entre deux mesures).
+        const sx0 = p.lx - x;
+        const sy0 = p.ly - y;
+        const segX = dx - sx0;
+        const segY = dy - sy0;
+        const segLen2 = segX * segX + segY * segY;
+        const tSeg = segLen2 > 0 ? Math.max(0, Math.min(1, -(sx0 * segX + sy0 * segY) / segLen2)) : 0;
+        const pathDist = Math.hypot(sx0 + segX * tSeg, sy0 + segY * tSeg);
+        const crossed = Math.min(dist, pathDist) < radius * (p.touch ? 0.7 : 0.6);
+        if (!pieces.current && cooldown === 0 && mouseSpeed > cutSpeed && crossed && now - p.t < 50) {
           const roll = Math.random();
           const count = roll < 0.45 ? 2 : roll < 0.8 ? 3 : 4;
           // Tailles inégales (surface totale conservée).
@@ -556,11 +468,11 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
               vx: Math.cos(base) * kick * speedK + mdx * rand(0, 250),
               vy: Math.sin(base) * kick * speedK + mdy * rand(0, 250),
               r: radius * Math.sqrt(weight / total) * 1.03,
-              pull: rand(7, 17),
+              pull: rand(9, 16),
               phase: rand(0, 6.3),
+              wait: i === 0 ? 0 : rand(0.15, 0.7),
             };
           });
-          tendrils.length = 0;
           offsets.fill(0);
           velocities.fill(0);
         }
@@ -575,9 +487,18 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
             const piece = list[i];
             const ox = piece.x - main.x;
             const oy = piece.y - main.y;
-            // Errance aléatoire, comme une matière vivante.
-            piece.vx += (-piece.pull * ox - 2.1 * piece.vx + randn() * 320) * dt;
-            piece.vy += (-piece.pull * oy - 2.1 * piece.vy + randn() * 320) * dt;
+            const d = Math.hypot(ox, oy) || 1;
+            piece.wait -= dt;
+            if (piece.wait > 0) {
+              // Lancé : il glisse puis ralentit.
+              piece.vx -= piece.vx * 3.2 * dt;
+              piece.vy -= piece.vy * 3.2 * dt;
+            } else {
+              // Comme une goutte de mercure : attirée de plus en plus fort en approchant.
+              const attract = piece.pull * radius * (1.2 + 2.2 * Math.max(0, 1 - d / (radius * 3)));
+              piece.vx += ((-ox / d) * attract * 1.6 - 4.2 * piece.vx + randn() * 40) * dt;
+              piece.vy += ((-oy / d) * attract * 1.6 - 4.2 * piece.vy + randn() * 40) * dt;
+            }
           }
           for (const piece of list) {
             piece.x += piece.vx * dt;
@@ -588,14 +509,16 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
             const piece = list[i];
             const gap = Math.hypot(piece.x - main.x, piece.y - main.y);
             const slow = Math.hypot(piece.vx - main.vx, piece.vy - main.vy) < 500;
-            if (gap < main.r * 0.55 && slow) {
+            if (gap < main.r * 0.6 && slow) {
               main.r = Math.sqrt(main.r * main.r + piece.r * piece.r);
+              // Le morceau absorbé pousse le corps principal un instant.
+              main.vx += piece.vx * (piece.r / main.r) * 0.5;
+              main.vy += piece.vy * (piece.r / main.r) * 0.5;
               list.splice(i, 1);
             }
           }
           if (list.length === 1 && Math.hypot(main.x, main.y) < radius * 0.1) {
             pieces.current = null;
-            tendrils.length = 0;
             cooldown = 0.6;
             // Tremblement à la reconstitution.
             for (let i = 0; i < VERTICES; i++) velocities[i] += radius * rand(-1.5, 5);
@@ -638,10 +561,10 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
         `rotate(${heading.toFixed(1)}) scale(${(1 + stretch).toFixed(3)} ${(1 - stretch * 0.7).toFixed(3)}) rotate(${(-heading).toFixed(1)})`,
       );
       const list = pieces.current;
+      // Pendant la reconstitution, le liquide « porte » plus loin : les ponts se forment plus tôt.
+      blurRef.current?.setAttribute('stdDeviation', f2(radius * (list ? 0.15 : 0.11)));
       if (list) {
         shapeRef.current?.setAttribute('d', '');
-        let strands = '';
-        const main = list[0];
         for (let i = 0; i < MAX_PIECES; i++) {
           const el = pieceRefs.current[i];
           const piece = list[i];
@@ -650,44 +573,23 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
             el.setAttribute('d', '');
             continue;
           }
-          el.setAttribute('d', bubblePath(piece.r, ripple * 1.5 + piece.phase, 1.8, phases, undefined, noiseSmooth, 0.12));
-          el.setAttribute('transform', `translate(${f2(piece.x)} ${f2(piece.y)})`);
-          if (i > 0) {
-            // Filaments : s'amincissent avec la distance puis cassent.
-            const gap = Math.hypot(piece.x - main.x, piece.y - main.y) - piece.r - main.r * 0.6;
-            // Plusieurs filaments, du plus épais au plus fin ; les fins cassent les premiers.
-            const fibers: Array<[number, number, number]> = [
-              [0.4, 1, 4.2],
-              [0.22, -1.7, 3.4],
-              [0.12, 2.6, 2.6],
-              [0.06, -0.6, 2],
-            ];
-            for (const [weight, bendK, reachK] of fibers) {
-              const thickness = radius * weight * Math.pow(Math.max(0, 1 - gap / (radius * reachK)), 0.7);
-              if (thickness > radius * 0.018) {
-                const bend = Math.sin(ripple * 2 + piece.phase + bendK) * radius * 0.3 * bendK;
-                strands += strandPath(main.x, main.y, piece.x, piece.y, thickness, bend) + ' ';
-              }
-            }
-            // Filament secondaire entre deux petits morceaux proches.
-            const other = list[i + 1];
-            if (other) {
-              const g2 = Math.hypot(other.x - piece.x, other.y - piece.y) - other.r - piece.r;
-              const t2 = radius * 0.14 * Math.max(0, 1 - g2 / (radius * 2.4));
-              if (t2 > radius * 0.018) strands += strandPath(piece.x, piece.y, other.x, other.y, t2, radius * 0.2) + ' ';
-            }
-          }
+          // Goutte étirée dans le sens où elle file, comme du mercure.
+          const v = Math.hypot(piece.vx, piece.vy);
+          const sx = 1 + Math.min(0.55, v / 1400);
+          const sy = 1 / Math.sqrt(sx);
+          const angle = (Math.atan2(piece.vy, piece.vx) * 180) / Math.PI;
+          el.setAttribute('d', bubblePath(piece.r * 1.06, ripple * 1.5 + piece.phase, 1.5, phases, undefined, noiseSmooth, 0.06));
+          el.setAttribute(
+            'transform',
+            `translate(${f2(piece.x)} ${f2(piece.y)}) rotate(${angle.toFixed(1)}) scale(${sx.toFixed(3)} ${sy.toFixed(3)}) rotate(${(-angle).toFixed(1)})`,
+          );
         }
-        strandsRef.current?.setAttribute('d', strands);
-        tendrilsRef.current?.setAttribute('d', tendrils.map((td) => tendrilPath(td, ripple)).join(' '));
       } else {
         for (const el of pieceRefs.current) el?.setAttribute('d', '');
-        strandsRef.current?.setAttribute('d', '');
         shapeRef.current?.setAttribute(
           'd',
           bubblePath(radius, ripple, wobble, phases, offsets, noiseSmooth, hovered.current ? 0.05 : 0.03),
         );
-        tendrilsRef.current?.setAttribute('d', '');
       }
       raf = requestAnimationFrame(frame);
     };
@@ -697,6 +599,11 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
 
   const explode = (event: React.MouseEvent) => {
     if (burst.current) return;
+    // Sur téléphone, glisser le doigt sert à jouer avec la bulle : seul un vrai
+    // toucher (sans déplacement) la fait éclater.
+    const start = tapStart.current;
+    tapStart.current = null;
+    if (event.detail > 0 && start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 14) return;
     burst.current = true;
     if ('vibrate' in navigator) navigator.vibrate?.(18);
     // À l'endroit du clic (ou au centre de la bulle au clavier).
@@ -737,6 +644,7 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
           aria-label="Entrer dans la galerie"
           data-cursor-plain
           onClick={explode}
+          onPointerDown={(event) => (tapStart.current = { x: event.clientX, y: event.clientY })}
           onPointerEnter={() => (hovered.current = true)}
           onPointerLeave={() => (hovered.current = false)}
           onFocus={() => (hovered.current = true)}
@@ -764,7 +672,7 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
                 height={area * 2}
                 colorInterpolationFilters="sRGB"
               >
-                <feGaussianBlur in="SourceGraphic" stdDeviation={radius * 0.11} result="blur" />
+                <feGaussianBlur ref={blurRef} in="SourceGraphic" stdDeviation={radius * 0.11} result="blur" />
                 <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 30 -13" />
               </filter>
             </defs>
@@ -781,11 +689,6 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
                   d=""
                 />
               ))}
-            </g>
-            {/* Tentacules et filaments : dessinés nets, hors du filtre, pour rester fins. */}
-            <g fill={INK}>
-              <path ref={tendrilsRef} d="" />
-              <path ref={strandsRef} d="" />
             </g>
           </motion.svg>
         </button>

@@ -2,11 +2,18 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { InkBubble } from '../components/InkBubble';
 import { saveStain } from '../lib/inkStain';
+import { useContent } from '../content/ContentContext';
+import { responsiveImage } from '../lib/image';
+import { GALLERY_CARD_SIZES } from '../components/ProductCard';
 import logo from '@/imports/figma/b754442f94e8c7ceed8a38ab7b6000231d38433e.png';
 
 /** Page de garde : page blanche, bulle d'encre à faire éclater, logo fixe en bas. */
 export default function LandingPage() {
   const navigate = useNavigate();
+  const { visibleIllustrations } = useContent();
+  // Images de la galerie téléchargées pendant que la bulle flotte : elles s'affichent
+  // aussitôt en arrivant sur Illustrations.
+  const preload = visibleIllustrations.slice(0, 6).map((item) => item.card.image);
 
   useEffect(() => {
     document.documentElement.classList.add('landing-scroll-hidden');
@@ -20,7 +27,7 @@ export default function LandingPage() {
   };
 
   return (
-    <main className="fixed inset-0 overflow-hidden bg-white">
+    <main className="fixed inset-0 touch-none select-none overflow-hidden bg-white">
       <h1 className="sr-only">Les Râleurs — illustrations et graphisme</h1>
 
       <img
@@ -31,6 +38,12 @@ export default function LandingPage() {
       />
 
       <InkBubble onSplat={saveStain} onBurst={enterGallery} />
+
+      <div aria-hidden="true" className="pointer-events-none fixed left-0 top-0 h-px w-px overflow-hidden opacity-0">
+        {preload.map((src) => (
+          <img key={src} {...responsiveImage(src, GALLERY_CARD_SIZES, 960)} alt="" loading="eager" fetchPriority="low" />
+        ))}
+      </div>
     </main>
   );
 }

@@ -91,6 +91,7 @@ export default function Home() {
                 transition={{ delay: isPhone ? 0.05 : 0.7 + index * 0.1, duration: isPhone ? 0.35 : 0.5 }}
               >
                 <ProductCard
+                  priority={index < 4}
                   id={product.id}
                   name={product.name}
                   price={product.price}
