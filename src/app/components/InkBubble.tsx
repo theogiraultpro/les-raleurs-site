@@ -232,70 +232,9 @@ function makeSplat(x: number, y: number, r: number, direction: number | null): S
     core += crownBlob(Math.cos(a) * along, Math.sin(a) * along, rad, dir, Math.round(rand(14, 30)), energy) + ' ';
   }
 
-  // Jets effilés qui sortent de la masse et finissent en pointe.
   const aimed = (spread: number, bias: number) =>
     Math.random() < bias ? dir + randn() * spread : rand(0, Math.PI * 2);
   let spines = '';
-  const jets = Math.round(rand(3, 9) * energy);
-  for (let i = 0; i < jets; i++) {
-    const a = aimed(0.6, cone ? 0.7 : 0.3);
-    const toward = Math.max(0, Math.cos(a - dir));
-    const len = R * rand(0.3, 1.1) * (1 + toward * 0.9) * energy;
-    const w0 = R * rand(0.06, 0.17);
-    const bend = rand(-0.18, 0.18);
-    const start = R * 0.55;
-    const pts: Point[] = [];
-    const widths: number[] = [];
-    const steps = 18;
-    for (let k = 0; k <= steps; k++) {
-      const u = k / steps;
-      const d = start + (R * 0.35 + len) * u;
-      const ang = a + bend * u * u;
-      pts.push([Math.cos(ang) * d, Math.sin(ang) * d]);
-      widths.push(w0 * Math.pow(1 - u, 1.25) * (1 + 1.2 * Math.pow(Math.max(0, 1 - u * 3), 2)));
-    }
-    core += taper(pts, widths) + ' ';
-    // Parfois, quelques éclats dans le prolongement du jet.
-    if (Math.random() < 0.4) {
-      const ang = a + bend;
-      let d = start + R * 0.35 + len + R * rand(0.08, 0.25);
-      const n = Math.round(rand(1, 4));
-      for (let k = 0; k < n; k++) {
-        const seg = R * rand(0.06, 0.25);
-        const mid = d + seg / 2;
-        spines += shard(Math.cos(ang) * mid, Math.sin(ang) * mid, w0 * rand(0.25, 0.45), ang, (seg / (w0 * 0.35)) * 0.5) + ' ';
-        d += seg + R * rand(0.06, 0.2);
-      }
-    }
-  }
-
-  // Longues traînées en pointillés dans l'axe du coup (une fois sur deux).
-  const streaks = Math.random() < 0.5 ? Math.round(rand(1, 3)) : 0;
-  for (let i = 0; i < streaks; i++) {
-    const a = dir + randn() * 0.22;
-    const ux = Math.cos(a);
-    const uy = Math.sin(a);
-    const lateral = rand(-0.5, 0.5) * R;
-    let d = R * rand(0.9, 1.3);
-    const end = d + R * rand(1.6, 3.4);
-    const w = R * rand(0.025, 0.06);
-    while (d < end) {
-      const seg = Math.min(end - d, R * rand(0.25, 1.1));
-      const pts: Point[] = [];
-      const widths: number[] = [];
-      for (let k = 0; k <= 8; k++) {
-        const u = k / 8;
-        const t = d + seg * u;
-        pts.push([ux * t - uy * lateral, uy * t + ux * lateral]);
-        widths.push(w * Math.sin(Math.PI * u) * rand(0.8, 1.15) * (1 - ((d - R) / (end - R)) * 0.5));
-      }
-      spines += taper(pts, widths) + ' ';
-      d += seg + R * rand(0.05, 0.25);
-    }
-    if (Math.random() < 0.5) {
-      spines += blob(ux * (end + R * 0.15) - uy * lateral, uy * (end + R * 0.15) + ux * lateral, w * rand(1.2, 2), a, rand(1.4, 2.2), 0.08) + ' ';
-    }
-  }
 
   // Petites taches satellites (gouttes tombées à côté, avec leur couronne).
   const satellites = Math.round(rand(0, 3));
