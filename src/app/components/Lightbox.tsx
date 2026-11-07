@@ -104,17 +104,13 @@ export default function Lightbox({ src, alt, onClose, onPrev, onNext }: Lightbox
           </button>
         )}
 
-        {/* Image : simple fondu d'une image à l'autre, sans zoom ni rebond */}
-        <motion.img
-          key={src}
+        {/* Image : changement instantané d'une image à l'autre, sans animation */}
+        <img
           {...responsiveImage(src, '90vw')}
           alt={alt ?? ''}
           className={`relative z-10 max-w-[90vw] object-contain rounded-2xl select-none ${
             onPrev || onNext ? 'max-h-[calc(100vh-11rem)] md:max-h-[90vh]' : 'max-h-[90vh]'
           }`}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
           onClick={(e) => e.stopPropagation()}
           draggable={false}
         />

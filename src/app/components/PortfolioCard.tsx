@@ -29,6 +29,8 @@ export function PortfolioCard({
 }: PortfolioCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
+  // Favori : au survol sur ordinateur, toujours visible sur téléphone (pas de survol au doigt).
+  const showLike = isHovered || !canHover;
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -141,13 +143,14 @@ export function PortfolioCard({
             }`}
             initial={{ scale: 0, opacity: 0 }}
             animate={{
-              scale: isHovered ? 1 : 0,
-              opacity: isHovered ? 1 : 0,
+              scale: showLike ? 1 : 0,
+              opacity: showLike ? 1 : 0,
             }}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
             transition={{ type: "spring", stiffness: 300, damping: 20 }}
             onClick={handleLike}
+            aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
           >
             <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
           </motion.button>

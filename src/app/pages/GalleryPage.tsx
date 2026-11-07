@@ -1,4 +1,4 @@
-import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'motion/react';
+import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
 import { canHover } from '../lib/mobile';
 import { useNavigate, useOutletContext } from 'react-router';
 import { useState, useRef, useCallback } from 'react';
@@ -26,21 +26,12 @@ interface GalleryPageProps {
   backTo: { label: string; path: string };
 }
 
-// Passage d'un visuel à l'autre : court glissement avec fondu, sans effet ressort.
-const SLIDE_DISTANCE = 120;
-const slideVariants = {
-  enter: (direction: number) => ({ x: direction > 0 ? SLIDE_DISTANCE : -SLIDE_DISTANCE, opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (direction: number) => ({ x: direction < 0 ? SLIDE_DISTANCE : -SLIDE_DISTANCE, opacity: 0 }),
-};
-const SMOOTH = { type: 'tween', duration: 0.28, ease: [0.22, 1, 0.36, 1] } as const;
 
 /** Page galerie : projets de graphisme et séries d'illustrations. */
 export default function GalleryPage({ title, subtitle, description, images, shop, backTo }: GalleryPageProps) {
   const navigate = useNavigate();
   const { handleAddToCart } = useOutletContext<OutletContext>();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [direction, setDirection] = useState(0);
   const imageRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -86,15 +77,12 @@ export default function GalleryPage({ title, subtitle, description, images, shop
   };
 
   const goTo = (index: number) => {
-    setDirection(index > currentIndex ? 1 : -1);
     setCurrentIndex(index);
   };
   const nextImage = () => {
-    setDirection(1);
     setCurrentIndex((prev) => (prev + 1) % images.length);
   };
   const prevImage = () => {
-    setDirection(-1);
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
@@ -117,19 +105,10 @@ export default function GalleryPage({ title, subtitle, description, images, shop
             className="relative"
           >
             <div className="relative">
-              <AnimatePresence initial={false} custom={direction} mode="wait">
+              {/* Passage d'un visuel à l'autre : instantané, sans animation */}
                 <motion.div
-                  key={currentIndex}
-                  custom={direction}
-                  variants={slideVariants}
-                  initial="enter"
-                  animate={{ x: 0, opacity: 1, scale: isHovered ? 1.05 : 1 }}
-                  exit="exit"
-                  transition={{
-                    x: SMOOTH,
-                    opacity: { duration: 0.2 },
-                    scale: { type: 'tween', duration: 0.35, ease: 'easeOut' },
-                  }}
+                  animate={{ scale: isHovered ? 1.05 : 1 }}
+                  transition={{ scale: { type: 'tween', duration: 0.35, ease: 'easeOut' } }}
                   ref={imageRef}
                   onMouseMove={canHover ? handleMouseMove : undefined}
                   onMouseEnter={() => canHover && setIsHovered(true)}
@@ -165,7 +144,6 @@ export default function GalleryPage({ title, subtitle, description, images, shop
                     </motion.button>
                   )}
                 </motion.div>
-              </AnimatePresence>
 
               {hasMany && (
                 <>
@@ -216,19 +194,9 @@ export default function GalleryPage({ title, subtitle, description, images, shop
               </h2>
             )}
             <div className="mb-12">
-              <AnimatePresence mode="wait">
-                <motion.p
-                  key={currentIndex}
-                  className="text-2xl mb-6"
-                  style={{ fontFamily: font, fontWeight: 700 }}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  {current.caption}
-                </motion.p>
-              </AnimatePresence>
+              <p className="text-2xl mb-6" style={{ fontFamily: font, fontWeight: 700 }}>
+                {current.caption}
+              </p>
             </div>
 
             <Description text={description} />
@@ -307,8 +275,6 @@ export default function GalleryPage({ title, subtitle, description, images, shop
                     {index === currentIndex && (
                       <motion.div
                         className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-2 h-2 bg-black rounded-full"
-                        layoutId="activeIndicator"
-                        transition={SMOOTH}
                       />
                     )}
                   </motion.button>
