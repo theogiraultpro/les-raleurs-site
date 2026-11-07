@@ -77,15 +77,19 @@ export default function Home() {
         <div className="max-w-7xl mx-auto">
           <motion.div
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-            initial={{ opacity: 0 }}
+            // Apparition déclenchée dès qu'un bout de la grille est visible
+            // (sur téléphone, la grille sur une colonne est très haute : un
+            // seuil en pourcentage la laissait invisible jusqu'au défilement).
+            initial={isPhone ? false : { opacity: 0 }}
             whileInView={{ opacity: 1 }}
-            viewport={{ once: true, amount: 0.1 }}
-            transition={{ delay: isPhone ? 0 : 0.6, duration: isPhone ? 0.4 : 0.8 }}
+            viewport={{ once: true, amount: 'some' }}
+            transition={{ delay: 0.6, duration: 0.8 }}
           >
             {products.map((product, index) => (
               <motion.div
                 key={product.id}
-                initial={{ opacity: 0, y: 30 }}
+                // Sur téléphone, les premières cartes sont là tout de suite.
+                initial={isPhone && index < 2 ? false : { opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.15 }}
                 transition={{ delay: isPhone ? 0.05 : 0.7 + index * 0.1, duration: isPhone ? 0.35 : 0.5 }}
