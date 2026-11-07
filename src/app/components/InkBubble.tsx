@@ -411,6 +411,9 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
     let stretch = 0;
     let heading = 0;
     let cooldown = 0;
+    const body = { x: 0, y: 0, vx: 0, vy: 0, init: false };
+    // Vitesse de croisière, proportionnelle à la taille de l'écran.
+    const cruise = (w: number, h: number) => Math.max(220, Math.min(480, Math.min(w, h) * 0.5));
     const offsets = new Float32Array(VERTICES);
     const velocities = new Float32Array(VERTICES);
     const smoothed = new Float32Array(VERTICES);
@@ -432,26 +435,82 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
 
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const marginX = radius * 1.9;
-      const marginTop = radius * 1.9;
-      const marginBottom = radius * 1.9 + 70; // laisse le logo respirer
-      const ax = w / 2 - marginX;
-      const ay = (h - marginTop - marginBottom) / 2;
-      const cy = marginTop + ay;
-      const x = reducedMotion
-        ? w / 2
-        : w / 2 + ax * (0.62 * Math.sin(clock * 0.19 + phases[3]) + 0.38 * Math.sin(clock * 0.47 + phases[4]));
-      const y = reducedMotion
-        ? cy
-        : cy + ay * (0.6 * Math.sin(clock * 0.23 + phases[5]) + 0.4 * Math.sin(clock * 0.41 + phases[0]));
+      const list0 = pieces.current;
+      let x: number;
+      let y: number;
+      if (reducedMotion) {
+        x = w / 2;
+        y = h / 2;
+      } else {
+        // ---- Vol libre : la bulle file à travers la page et rebondit sur les bords.
+        if (!body.init) {
+          const angle = rand(0, Math.PI * 2);
+          const start = cruise(w, h);
+          body.x = w / 2;
+          body.y = h / 2;
+          body.vx = Math.cos(angle) * start;
+          body.vy = Math.sin(angle) * start;
+          body.init = true;
+        }
+        // Trajectoire vivante : petits changements de cap au hasard.
+        const turn = randn() * 1.1 * Math.sqrt(dt);
+        const cos = Math.cos(turn);
+        const sin = Math.sin(turn);
+        const tvx = body.vx * cos - body.vy * sin;
+        body.vy = body.vx * sin + body.vy * cos;
+        body.vx = tvx;
+        // Vitesse de croisière : ralentit au survol (pour se laisser attraper) et quand elle est coupée.
+        const target = cruise(w, h) * (hovered.current ? 0.3 : 1) * (list0 ? 0.35 : 1);
+        const v0 = Math.hypot(body.vx, body.vy) || 1;
+        const k = 1 + (target / v0 - 1) * Math.min(1, dt * (v0 > target ? 1.2 : 2.5));
+        body.vx *= k;
+        body.vy *= k;
+        body.x += body.vx * dt;
+        body.y += body.vy * dt;
+
+        // Rebonds : la bulle s'écrase un peu contre le bord, puis repart.
+        const inset = radius * 1.08;
+        const hit = (nx: number, ny: number, impact: number) => {
+          if (impact < 30) return;
+          ripple += 0.6;
+          if (pieces.current) return;
+          const strength = Math.min(impact, 1400) * 0.9;
+          for (let i = 0; i < VERTICES; i++) {
+            const a = (i / VERTICES) * Math.PI * 2;
+            const align = Math.cos(a) * nx + Math.sin(a) * ny;
+            // Côté du choc aplati, côtés perpendiculaires qui gonflent.
+            velocities[i] += -strength * Math.pow(Math.max(0, align), 3) + strength * 0.35 * (1 - align * align);
+          }
+        };
+        if (body.x < inset) {
+          hit(-1, 0, -body.vx);
+          body.x = inset;
+          body.vx = Math.abs(body.vx) * 0.96;
+        } else if (body.x > w - inset) {
+          hit(1, 0, body.vx);
+          body.x = w - inset;
+          body.vx = -Math.abs(body.vx) * 0.96;
+        }
+        if (body.y < inset) {
+          hit(0, -1, -body.vy);
+          body.y = inset;
+          body.vy = Math.abs(body.vy) * 0.96;
+        } else if (body.y > h - inset) {
+          hit(0, 1, body.vy);
+          body.y = h - inset;
+          body.vy = -Math.abs(body.vy) * 0.96;
+        }
+        x = body.x;
+        y = body.y;
+      }
       position.current = { x, y };
 
-      // Étirement léger dans le sens de la dérive.
+      // Étirement dans le sens du vol, plus marqué quand elle va vite.
       const vx = (x - prev.x) / Math.max(dt, 0.001);
       const vy = (y - prev.y) / Math.max(dt, 0.001);
       prev = { x, y };
-      const v = Math.hypot(vx, vy);
-      stretch += (Math.min(0.1, v / 900) - stretch) * Math.min(1, dt * 4);
+      const v = Math.min(3000, Math.hypot(vx, vy));
+      stretch += (Math.min(0.16, v / 2600) - stretch) * Math.min(1, dt * 5);
       if (v > 4) heading = (Math.atan2(vy, vx) * 180) / Math.PI;
 
       const p = pointer.current;
@@ -572,6 +631,12 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
           const reach = radius * 2.6;
           const influence = Math.max(0, Math.min(1, (reach - dist) / (reach - radius * 0.6)));
           const force = influence * Math.min(Math.pow(mouseSpeed / 1000, 1.9), 14);
+          // Un geste vif à côté de la bulle la pousse (sans la couper).
+          if (influence > 0 && mouseSpeed > 300 && now - p.t < 80) {
+            const shove = influence * Math.min(mouseSpeed, 3000) * 2.4 * dt;
+            body.vx += mdx * shove;
+            body.vy += mdy * shove;
+          }
           const stiffness = 150;
           const damping = 8;
           for (let i = 0; i < VERTICES; i++) {
