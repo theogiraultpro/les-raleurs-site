@@ -5,8 +5,12 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
+    },
+    {
+      "source": "/((?!api/|assets/|_vercel/).*)",
+      "destination": "/api/page?path=$1"
     }
   ],
   "images": {
@@ -43,5 +47,10 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/page.ts": {
+      "includeFiles": "dist/index.html"
+    }
+  }
 }

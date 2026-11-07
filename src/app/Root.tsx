@@ -5,6 +5,7 @@ import CustomCursor from './components/CustomCursor';
 import { Cart } from './components/Cart';
 import { Favorites } from './components/Favorites';
 import { Footer } from './components/Footer';
+import { PageMeta } from './components/PageMeta';
 import { PersistentStain } from './components/PersistentStain';
 import { itemKey, type ItemRef } from './content/pricing';
 
@@ -110,6 +111,7 @@ export default function Root() {
 
   return (
     <div className="relative isolate min-h-screen bg-white cursor-none">
+      <PageMeta />
       <CustomCursor />
       {/* TEST : la tache d'encre de l'accueil reste en fond sur les pages */}
       {location.pathname !== '/' && <PersistentStain />}

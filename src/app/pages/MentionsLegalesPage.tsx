@@ -53,10 +53,12 @@ export default function MentionsLegalesPage() {
         CNIL (<a href="https://www.cnil.fr">cnil.fr</a>).
       </p>
 
-      <h2>Cookies</h2>
+      <h2>Cookies et mesure d'audience</h2>
       <p>
-        Ce site n'utilise aucun cookie publicitaire ni de mesure d'audience. Vos favoris sont seulement enregistrés
-        dans votre propre navigateur, et ne sont pas transmis.
+        Ce site n'utilise aucun cookie. La fréquentation est mesurée de façon anonyme avec Vercel Web Analytics et
+        Speed Insights : pages vues, pays, type d'appareil, provenance et vitesse d'affichage, sans cookie ni
+        identification des visiteurs. Vos favoris sont seulement enregistrés dans votre propre navigateur, et ne
+        sont pas transmis.
       </p>
 
       <h2>Vente en ligne</h2>

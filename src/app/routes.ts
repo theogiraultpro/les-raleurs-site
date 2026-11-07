@@ -2,11 +2,7 @@ import { createBrowserRouter } from "react-router";
 import Root from "./Root";
 import Home from "./pages/Home";
 import LandingPage from "./pages/LandingPage";
-import AboutPage from "./pages/AboutPage";
-import CommissionsPage from "./pages/CommissionsPage";
 import GraphismePage from "./pages/GraphismePage";
-import MentionsLegalesPage from "./pages/MentionsLegalesPage";
-import CGVPage from "./pages/CGVPage";
 import EntryPage from "./pages/EntryPage";
 
 export const router = createBrowserRouter([
@@ -18,11 +14,11 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: LandingPage },
       { path: "illustrations", Component: Home },
-      { path: "about", Component: AboutPage },
-      { path: "commissions", Component: CommissionsPage },
+      { path: "about", lazy: async () => ({ Component: (await import("./pages/AboutPage")).default }) },
+      { path: "commissions", lazy: async () => ({ Component: (await import("./pages/CommissionsPage")).default }) },
       { path: "graphisme", Component: GraphismePage },
-      { path: "mentions-legales", Component: MentionsLegalesPage },
-      { path: "cgv", Component: CGVPage },
+      { path: "mentions-legales", lazy: async () => ({ Component: (await import("./pages/MentionsLegalesPage")).default }) },
+      { path: "cgv", lazy: async () => ({ Component: (await import("./pages/CGVPage")).default }) },
       // Œuvres et projets : lesraleurs.com/<slug>, voir content/defaultContent.ts
       { path: ":slug", Component: EntryPage },
       { path: "*", Component: EntryPage },

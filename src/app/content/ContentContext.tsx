@@ -16,15 +16,22 @@ async function fetchPublishedContent(signal: AbortSignal): Promise<SiteContent |
   return content;
 }
 
+/** Contenu déjà glissé dans la page par le serveur (api/page.ts), s'il est valide. */
+function inlinedContent(): SiteContent | null {
+  const data = (window as unknown as { __SITE_CONTENT__?: SiteContent }).__SITE_CONTENT__;
+  return data && Array.isArray(data.illustrations) && Array.isArray(data.projects) ? data : null;
+}
+
 /**
  * Fournit le contenu du site à toutes les pages :
  * le contenu publié depuis /admin s'il existe, sinon le contenu de départ
  * embarqué dans le site (defaultContent.ts).
  */
 export function ContentProvider({ children }: { children: ReactNode }) {
-  const [content, setContent] = useState<SiteContent | null>(null);
+  const [content, setContent] = useState<SiteContent | null>(inlinedContent);
 
   useEffect(() => {
+    if (content) return;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), LOAD_TIMEOUT_MS);
     fetchPublishedContent(controller.signal)
