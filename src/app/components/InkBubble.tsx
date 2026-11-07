@@ -328,6 +328,8 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
   const reducedMotion = useReducedMotion() ?? false;
   const buttonRef = useRef<HTMLButtonElement>(null);
   const bodyRef = useRef<SVGGElement>(null);
+  const gooRef = useRef<SVGGElement>(null);
+  const filterRef = useRef<SVGFilterElement>(null);
   const shapeRef = useRef<SVGPathElement>(null);
   const blurRef = useRef<SVGFEGaussianBlurElement>(null);
   const tapStart = useRef<{ x: number; y: number } | null>(null);
@@ -409,6 +411,9 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
     let last = performance.now();
     let prev = { x: 0, y: 0 };
     let stretch = 0;
+    let stretchX = 0;
+    let stretchY = 0;
+    let gooOn = true;
     let heading = 0;
     let cooldown = 0;
     const body = { x: 0, y: 0, vx: 0, vy: 0, init: false };
@@ -513,9 +518,14 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
       const vx = (x - prev.x) / Math.max(dt, 0.001);
       const vy = (y - prev.y) / Math.max(dt, 0.001);
       prev = { x, y };
+      // Lissé comme un vecteur : au rebond, l'étirement pivote en douceur au lieu de sauter.
       const v = Math.min(3000, Math.hypot(vx, vy));
-      stretch += ((wallX.on || wallY.on ? 0 : Math.min(0.16, v / 2600)) - stretch) * Math.min(1, dt * (wallX.on || wallY.on ? 12 : 5));
-      if (v > 4) heading = (Math.atan2(vy, vx) * 180) / Math.PI;
+      const amount = wallX.on || wallY.on ? 0 : Math.min(0.16, v / 2600);
+      const ease = Math.min(1, dt * 6);
+      stretchX += ((v > 1 ? (vx / v) * amount : 0) - stretchX) * ease;
+      stretchY += ((v > 1 ? (vy / v) * amount : 0) - stretchY) * ease;
+      stretch = Math.hypot(stretchX, stretchY);
+      if (stretch > 0.001) heading = (Math.atan2(stretchY, stretchX) * 180) / Math.PI;
 
       const p = pointer.current;
       const dx = p.x - x;
@@ -683,7 +693,26 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
       );
       const list = pieces.current;
       // Pendant la reconstitution, le liquide « porte » plus loin : les ponts se forment plus tôt.
-      blurRef.current?.setAttribute('stdDeviation', f2(radius * (list ? 0.15 : 0.11)));
+      // Le filtre « liquide » ne sert qu'à relier les morceaux : on ne le calcule
+      // que pendant la coupure, dans une zone ajustée autour d'eux (gros gain sur téléphone).
+      const goo = gooRef.current;
+      if (goo && !!list !== gooOn) {
+        gooOn = !!list;
+        if (gooOn) goo.setAttribute('filter', `url(#${gooId})`);
+        else goo.removeAttribute('filter');
+      }
+      if (list) {
+        blurRef.current?.setAttribute('stdDeviation', f2(radius * 0.15));
+        let ext = radius * 2.2;
+        for (const piece of list) ext = Math.max(ext, Math.abs(piece.x) + piece.r * 2.2, Math.abs(piece.y) + piece.r * 2.2);
+        const filter = filterRef.current;
+        if (filter) {
+          filter.setAttribute('x', f2(-ext));
+          filter.setAttribute('y', f2(-ext));
+          filter.setAttribute('width', f2(ext * 2));
+          filter.setAttribute('height', f2(ext * 2));
+        }
+      }
       if (list) {
         shapeRef.current?.setAttribute('d', '');
         for (let i = 0; i < MAX_PIECES; i++) {
@@ -771,7 +800,7 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
           onFocus={() => (hovered.current = true)}
           onBlur={() => (hovered.current = false)}
           className="fixed left-0 top-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-4"
-          style={{ width: size, height: size, transform: 'translate(-9999px, -9999px)', WebkitTapHighlightColor: 'transparent' }}
+          style={{ width: size, height: size, transform: 'translate(-9999px, -9999px)', WebkitTapHighlightColor: 'transparent', willChange: 'transform' }}
         >
           <motion.svg
             width={size}
@@ -785,6 +814,7 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
             <defs>
               {/* Matière liquide : les formes proches se relient par des ponts d'encre. */}
               <filter
+                ref={filterRef}
                 id={gooId}
                 filterUnits="userSpaceOnUse"
                 x={-area}
@@ -797,7 +827,7 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
                 <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 30 -13" />
               </filter>
             </defs>
-            <g filter={`url(#${gooId})`} fill={INK}>
+            <g ref={gooRef} fill={INK}>
               <g ref={bodyRef}>
                 <path ref={shapeRef} d={bubblePath(radius, 0, 1, phases)} />
               </g>
