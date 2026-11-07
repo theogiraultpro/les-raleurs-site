@@ -412,6 +412,9 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
     let heading = 0;
     let cooldown = 0;
     const body = { x: 0, y: 0, vx: 0, vy: 0, init: false };
+    // Contact avec un mur vertical (x) ou horizontal (y).
+    const wallX = { axis: 'x' as 'x' | 'y', on: false, omega: 0, pen: 0, side: 1 };
+    const wallY = { axis: 'y' as 'x' | 'y', on: false, omega: 0, pen: 0, side: 1 };
     // Vitesse de croisière, proportionnelle à la taille de l'écran.
     const cruise = (w: number, h: number) => Math.max(110, Math.min(210, Math.min(w, h) * 0.24));
     const offsets = new Float32Array(VERTICES);
@@ -454,46 +457,53 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
           body.init = true;
         }
         // Vitesse de croisière : ralentit au survol (pour se laisser attraper) et quand elle est coupée.
-        const target = cruise(w, h) * (hovered.current ? 0.3 : 1) * (list0 ? 0.35 : 1);
-        const v0 = Math.hypot(body.vx, body.vy) || 1;
-        const k = 1 + (target / v0 - 1) * Math.min(1, dt * (v0 > target ? 1.2 : 2.5));
-        body.vx *= k;
-        body.vy *= k;
-        body.x += body.vx * dt;
-        body.y += body.vy * dt;
+        // Pas pendant un contact avec un mur : c'est le mur qui la renvoie.
+        if (!wallX.on && !wallY.on) {
+          const target = cruise(w, h) * (hovered.current ? 0.3 : 1) * (list0 ? 0.35 : 1);
+          const v0 = Math.hypot(body.vx, body.vy) || 1;
+          const k = 1 + (target / v0 - 1) * Math.min(1, dt * (v0 > target ? 1.2 : 2.5));
+          body.vx *= k;
+          body.vy *= k;
+        }
 
-        // Rebonds : la bulle s'écrase un peu contre le bord, puis repart.
-        const inset = radius * 1.08;
-        const hit = (nx: number, ny: number, impact: number) => {
-          if (impact < 30) return;
+        // Rebonds : la bulle continue un peu dans le mur en s'écrasant dessus,
+        // puis le mur la renvoie (comme un ressort), et elle tremble en repartant.
+        const inset = radius;
+        const jiggle = (nx: number, ny: number, impact: number) => {
           ripple += 0.6;
           if (pieces.current) return;
-          const strength = Math.min(impact, 1400) * 1.6;
+          const strength = Math.min(impact, 1400) * 0.9;
           for (let i = 0; i < VERTICES; i++) {
             const a = (i / VERTICES) * Math.PI * 2;
             const align = Math.cos(a) * nx + Math.sin(a) * ny;
-            // Côté du choc aplati, côtés perpendiculaires qui gonflent.
-            velocities[i] += -strength * Math.pow(Math.max(0, align), 3) + strength * 0.35 * (1 - align * align);
+            velocities[i] += strength * (0.5 * align * align - 0.25);
           }
         };
-        if (body.x < inset) {
-          hit(-1, 0, -body.vx);
-          body.x = inset;
-          body.vx = Math.abs(body.vx);
-        } else if (body.x > w - inset) {
-          hit(1, 0, body.vx);
-          body.x = w - inset;
-          body.vx = -Math.abs(body.vx);
-        }
-        if (body.y < inset) {
-          hit(0, -1, -body.vy);
-          body.y = inset;
-          body.vy = Math.abs(body.vy);
-        } else if (body.y > h - inset) {
-          hit(0, 1, body.vy);
-          body.y = h - inset;
-          body.vy = -Math.abs(body.vy);
-        }
+        const wall = (state: typeof wallX, pos: number, vel: number, low: number, high: number) => {
+          // Enfoncement dans le mur le plus proche (signé : + vers l'extérieur).
+          const pen = pos < low ? low - pos : pos > high ? pos - high : 0;
+          const side = pos < low ? -1 : 1;
+          if (pen > 0 && !state.on) {
+            // Entrée dans le mur : la raideur fixe la profondeur d'écrasement (~45 % du rayon).
+            const incoming = Math.abs(vel);
+            state.omega = Math.max(9, incoming / (radius * 0.45));
+            state.on = true;
+            state.side = side;
+          }
+          if (state.on && pen <= 0) {
+            state.on = false;
+            jiggle(state.axis === 'x' ? state.side : 0, state.axis === 'y' ? state.side : 0, Math.abs(vel));
+          }
+          state.pen = state.on ? Math.max(0, pen) : 0;
+          return state.on ? -side * state.omega * state.omega * state.pen : 0;
+        };
+        body.vx += wall(wallX, body.x, body.vx, inset, w - inset) * dt;
+        body.vy += wall(wallY, body.y, body.vy, inset, h - inset) * dt;
+        body.x += body.vx * dt;
+        body.y += body.vy * dt;
+        // Sécurité (fenêtre redimensionnée, poussée violente) : jamais hors de la page.
+        body.x = Math.max(inset * 0.4, Math.min(w - inset * 0.4, body.x));
+        body.y = Math.max(inset * 0.4, Math.min(h - inset * 0.4, body.y));
         x = body.x;
         y = body.y;
       }
@@ -504,7 +514,7 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
       const vy = (y - prev.y) / Math.max(dt, 0.001);
       prev = { x, y };
       const v = Math.min(3000, Math.hypot(vx, vy));
-      stretch += (Math.min(0.16, v / 2600) - stretch) * Math.min(1, dt * 5);
+      stretch += ((wallX.on || wallY.on ? 0 : Math.min(0.16, v / 2600)) - stretch) * Math.min(1, dt * (wallX.on || wallY.on ? 12 : 5));
       if (v > 4) heading = (Math.atan2(vy, vx) * 180) / Math.PI;
 
       const p = pointer.current;
@@ -659,9 +669,17 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
       // ---- Dessin
       const button = buttonRef.current;
       if (button) button.style.transform = `translate(${x - radius * 1.5}px, ${y - radius * 1.5}px)`;
+      // Écrasement contre le mur : le côté du mur s'aplatit, le côté opposé
+      // ne bouge presque pas, la bulle s'élargit le long du mur.
+      const squashX = wallX.pen / (radius * 2);
+      const squashY = wallY.pen / (radius * 2);
+      const sx = (1 - squashX) / Math.sqrt(1 - squashY);
+      const sy = (1 - squashY) / Math.sqrt(1 - squashX);
+      const tx = -wallX.side * wallX.pen * 0.5;
+      const ty = -wallY.side * wallY.pen * 0.5;
       bodyRef.current?.setAttribute(
         'transform',
-        `rotate(${heading.toFixed(1)}) scale(${(1 + stretch).toFixed(3)} ${(1 - stretch * 0.7).toFixed(3)}) rotate(${(-heading).toFixed(1)})`,
+        `translate(${f2(tx)} ${f2(ty)}) scale(${sx.toFixed(3)} ${sy.toFixed(3)}) rotate(${heading.toFixed(1)}) scale(${(1 + stretch).toFixed(3)} ${(1 - stretch * 0.7).toFixed(3)}) rotate(${(-heading).toFixed(1)})`,
       );
       const list = pieces.current;
       // Pendant la reconstitution, le liquide « porte » plus loin : les ponts se forment plus tôt.
