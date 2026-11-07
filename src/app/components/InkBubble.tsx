@@ -413,7 +413,7 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
     let cooldown = 0;
     const body = { x: 0, y: 0, vx: 0, vy: 0, init: false };
     // Vitesse de croisière, proportionnelle à la taille de l'écran.
-    const cruise = (w: number, h: number) => Math.max(220, Math.min(480, Math.min(w, h) * 0.5));
+    const cruise = (w: number, h: number) => Math.max(110, Math.min(210, Math.min(w, h) * 0.24));
     const offsets = new Float32Array(VERTICES);
     const velocities = new Float32Array(VERTICES);
     const smoothed = new Float32Array(VERTICES);
@@ -442,9 +442,10 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
         x = w / 2;
         y = h / 2;
       } else {
-        // ---- Vol libre : la bulle file à travers la page et rebondit sur les bords.
+        // ---- Comme une balle : ligne droite à vitesse constante, rebond net sur chaque bord.
         if (!body.init) {
-          const angle = rand(0, Math.PI * 2);
+          // Départ en diagonale (jamais pile horizontal ou vertical), puis ligne droite.
+          const angle = rand(0.45, 1.1) + Math.floor(rand(0, 4)) * (Math.PI / 2);
           const start = cruise(w, h);
           body.x = w / 2;
           body.y = h / 2;
@@ -452,13 +453,6 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
           body.vy = Math.sin(angle) * start;
           body.init = true;
         }
-        // Trajectoire vivante : petits changements de cap au hasard.
-        const turn = randn() * 1.1 * Math.sqrt(dt);
-        const cos = Math.cos(turn);
-        const sin = Math.sin(turn);
-        const tvx = body.vx * cos - body.vy * sin;
-        body.vy = body.vx * sin + body.vy * cos;
-        body.vx = tvx;
         // Vitesse de croisière : ralentit au survol (pour se laisser attraper) et quand elle est coupée.
         const target = cruise(w, h) * (hovered.current ? 0.3 : 1) * (list0 ? 0.35 : 1);
         const v0 = Math.hypot(body.vx, body.vy) || 1;
@@ -474,7 +468,7 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
           if (impact < 30) return;
           ripple += 0.6;
           if (pieces.current) return;
-          const strength = Math.min(impact, 1400) * 0.9;
+          const strength = Math.min(impact, 1400) * 1.6;
           for (let i = 0; i < VERTICES; i++) {
             const a = (i / VERTICES) * Math.PI * 2;
             const align = Math.cos(a) * nx + Math.sin(a) * ny;
@@ -485,20 +479,20 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
         if (body.x < inset) {
           hit(-1, 0, -body.vx);
           body.x = inset;
-          body.vx = Math.abs(body.vx) * 0.96;
+          body.vx = Math.abs(body.vx);
         } else if (body.x > w - inset) {
           hit(1, 0, body.vx);
           body.x = w - inset;
-          body.vx = -Math.abs(body.vx) * 0.96;
+          body.vx = -Math.abs(body.vx);
         }
         if (body.y < inset) {
           hit(0, -1, -body.vy);
           body.y = inset;
-          body.vy = Math.abs(body.vy) * 0.96;
+          body.vy = Math.abs(body.vy);
         } else if (body.y > h - inset) {
           hit(0, 1, body.vy);
           body.y = h - inset;
-          body.vy = -Math.abs(body.vy) * 0.96;
+          body.vy = -Math.abs(body.vy);
         }
         x = body.x;
         y = body.y;
