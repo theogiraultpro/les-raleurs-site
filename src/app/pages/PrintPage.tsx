@@ -1,4 +1,5 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
+import { canHover } from '../lib/mobile';
 import { useNavigate, useOutletContext } from 'react-router';
 import { useState, useRef } from 'react';
 import Lightbox from '../components/Lightbox';
@@ -75,8 +76,8 @@ export default function PrintPage({ illustration }: { illustration: Illustration
             <motion.div
               ref={imageRef}
               className="relative overflow-hidden rounded-[3rem]"
-              onMouseMove={handleMouseMove}
-              onMouseEnter={() => setIsHovered(true)}
+              onMouseMove={canHover ? handleMouseMove : undefined}
+              onMouseEnter={() => canHover && setIsHovered(true)}
               onMouseLeave={handleMouseLeave}
               style={{
                 y: translateY,

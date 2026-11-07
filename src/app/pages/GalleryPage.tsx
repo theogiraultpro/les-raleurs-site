@@ -1,4 +1,5 @@
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'motion/react';
+import { canHover } from '../lib/mobile';
 import { useNavigate, useOutletContext } from 'react-router';
 import { useState, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, ShoppingCart } from 'lucide-react';
@@ -25,11 +26,14 @@ interface GalleryPageProps {
   backTo: { label: string; path: string };
 }
 
+// Passage d'un visuel à l'autre : court glissement avec fondu, sans effet ressort.
+const SLIDE_DISTANCE = 120;
 const slideVariants = {
-  enter: (direction: number) => ({ x: direction > 0 ? 1000 : -1000, opacity: 0 }),
+  enter: (direction: number) => ({ x: direction > 0 ? SLIDE_DISTANCE : -SLIDE_DISTANCE, opacity: 0 }),
   center: { x: 0, opacity: 1 },
-  exit: (direction: number) => ({ x: direction < 0 ? 1000 : -1000, opacity: 0 }),
+  exit: (direction: number) => ({ x: direction < 0 ? SLIDE_DISTANCE : -SLIDE_DISTANCE, opacity: 0 }),
 };
+const SMOOTH = { type: 'tween', duration: 0.28, ease: [0.22, 1, 0.36, 1] } as const;
 
 /** Page galerie : projets de graphisme et séries d'illustrations. */
 export default function GalleryPage({ title, subtitle, description, images, shop, backTo }: GalleryPageProps) {
@@ -122,13 +126,13 @@ export default function GalleryPage({ title, subtitle, description, images, shop
                   animate={{ x: 0, opacity: 1, scale: isHovered ? 1.05 : 1 }}
                   exit="exit"
                   transition={{
-                    x: { type: 'spring', stiffness: 300, damping: 30 },
+                    x: SMOOTH,
                     opacity: { duration: 0.2 },
-                    scale: { type: 'spring', stiffness: 150, damping: 20, mass: 1.5 },
+                    scale: { type: 'tween', duration: 0.35, ease: 'easeOut' },
                   }}
                   ref={imageRef}
-                  onMouseMove={handleMouseMove}
-                  onMouseEnter={() => setIsHovered(true)}
+                  onMouseMove={canHover ? handleMouseMove : undefined}
+                  onMouseEnter={() => canHover && setIsHovered(true)}
                   onMouseLeave={handleMouseLeave}
                   className="relative overflow-hidden rounded-[3rem]"
                   style={{
@@ -304,7 +308,7 @@ export default function GalleryPage({ title, subtitle, description, images, shop
                       <motion.div
                         className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-2 h-2 bg-black rounded-full"
                         layoutId="activeIndicator"
-                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                        transition={SMOOTH}
                       />
                     )}
                   </motion.button>

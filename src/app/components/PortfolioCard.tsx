@@ -1,4 +1,5 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
+import { canHover } from '../lib/mobile';
 import { Heart } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { responsiveImage } from '../lib/image';
@@ -79,8 +80,8 @@ export function PortfolioCard({
       ref={cardRef}
       className="relative group cursor-pointer"
       data-cursor-card
-      onMouseMove={handleMouseMove}
-      onMouseEnter={() => setIsHovered(true)}
+      onMouseMove={canHover ? handleMouseMove : undefined}
+      onMouseEnter={() => canHover && setIsHovered(true)}
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
       style={{
