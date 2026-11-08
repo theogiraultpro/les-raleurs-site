@@ -466,7 +466,7 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
         if (!wallX.on && !wallY.on) {
           const target = cruise(w, h) * (hovered.current ? 0.3 : 1) * (list0 ? 0.35 : 1);
           const v0 = Math.hypot(body.vx, body.vy) || 1;
-          const k = 1 + (target / v0 - 1) * Math.min(1, dt * (v0 > target ? 1.2 : 2.5));
+          const k = 1 + (target / v0 - 1) * Math.min(1, dt * (v0 > target ? 2.2 : 2.5));
           body.vx *= k;
           body.vy *= k;
         }
@@ -646,10 +646,17 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
           const influence = Math.max(0, Math.min(1, (reach - dist) / (reach - radius * 0.6)));
           const force = influence * Math.min(Math.pow(mouseSpeed / 1000, 1.9), 14);
           // Un geste vif à côté de la bulle la pousse (sans la couper).
-          if (influence > 0 && mouseSpeed > 300 && now - p.t < 80) {
-            const shove = influence * Math.min(mouseSpeed, 3000) * 2.4 * dt;
+          if (influence > 0 && mouseSpeed > 500 && now - p.t < 80) {
+            const shove = influence * Math.min(mouseSpeed, 2500) * 0.9 * dt;
             body.vx += mdx * shove;
             body.vy += mdy * shove;
+            // Jamais plus de 1,6 fois sa vitesse de croisière.
+            const limit = cruise(window.innerWidth, window.innerHeight) * 1.6;
+            const sp = Math.hypot(body.vx, body.vy);
+            if (sp > limit) {
+              body.vx *= limit / sp;
+              body.vy *= limit / sp;
+            }
           }
           const stiffness = 150;
           const damping = 8;
