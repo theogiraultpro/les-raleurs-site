@@ -289,9 +289,7 @@ export default function CommissionsPage() {
                 <motion.div
                   key={example.id}
                   className="relative w-64 h-64 bg-gray-100 rounded-xl overflow-hidden group cursor-pointer flex-shrink-0"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.6, delay: 0.9 + index * 0.1 }}
+                  initial={false}
                   whileHover={{ scale: 1.05 }}
                 >
                   <motion.div

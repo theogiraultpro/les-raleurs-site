@@ -4,7 +4,6 @@ import { ProductCard } from '../components/ProductCard';
 import { useContent } from '../content/ContentContext';
 import { quickAddFormat } from '../content/pricing';
 import type { AddToCart } from '../Root';
-import { isPhone } from '../lib/mobile';
 
 
 export default function Home() {
@@ -75,25 +74,10 @@ export default function Home() {
       {/* Products Grid */}
       <section className="px-6 pb-20">
         <div className="max-w-7xl mx-auto">
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-            // Apparition déclenchée dès qu'un bout de la grille est visible
-            // (sur téléphone, la grille sur une colonne est très haute : un
-            // seuil en pourcentage la laissait invisible jusqu'au défilement).
-            initial={isPhone ? false : { opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true, amount: 'some' }}
-            transition={{ delay: 0.6, duration: 0.8 }}
-          >
+          {/* Les illustrations s'affichent directement, sans fondu. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {products.map((product, index) => (
-              <motion.div
-                key={product.id}
-                // Sur téléphone, les premières cartes sont là tout de suite.
-                initial={isPhone && index < 2 ? false : { opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.15 }}
-                transition={{ delay: isPhone ? 0.05 : 0.7 + index * 0.1, duration: isPhone ? 0.35 : 0.5 }}
-              >
+              <div key={product.id}>
                 <ProductCard
                   priority={index < 4}
                   id={product.id}
@@ -134,9 +118,9 @@ export default function Home() {
                   isFavorite={isFavorite(String(product.id))}
                   onClick={() => handleProductClick(product)}
                 />
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
     </>

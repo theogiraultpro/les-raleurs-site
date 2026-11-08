@@ -91,17 +91,13 @@ export default function GalleryPage({ title, subtitle, description, images, shop
   return (
     <motion.div
       className="min-h-screen pt-48 pb-32"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.6 }}
+      initial={false}
     >
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
           {/* Carrousel */}
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
+            initial={false}
             className="relative"
           >
             <div className="relative">
