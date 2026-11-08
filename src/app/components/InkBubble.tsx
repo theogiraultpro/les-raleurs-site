@@ -421,7 +421,7 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
     const wallX = { axis: 'x' as 'x' | 'y', on: false, omega: 0, pen: 0, side: 1 };
     const wallY = { axis: 'y' as 'x' | 'y', on: false, omega: 0, pen: 0, side: 1 };
     // Vitesse de croisière, proportionnelle à la taille de l'écran.
-    const cruise = (w: number, h: number) => Math.max(110, Math.min(210, Math.min(w, h) * 0.24));
+    const cruise = (w: number, h: number) => Math.max(110, Math.min(160, Math.min(w, h) * 0.2));
     const offsets = new Float32Array(VERTICES);
     const velocities = new Float32Array(VERTICES);
     const smoothed = new Float32Array(VERTICES);
