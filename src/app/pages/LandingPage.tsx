@@ -27,7 +27,7 @@ export default function LandingPage() {
   };
 
   return (
-    <main className="fixed inset-0 touch-none select-none overflow-hidden bg-white">
+    <main className="site-surface fixed inset-0 touch-none select-none overflow-hidden bg-white">
       <h1 className="sr-only">Les Râleurs — illustrations et graphisme</h1>
 
       <img

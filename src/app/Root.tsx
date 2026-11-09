@@ -113,7 +113,7 @@ export default function Root() {
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="relative isolate min-h-screen bg-white cursor-none">
+    <div className="site-surface relative isolate min-h-screen bg-white cursor-none">
       <PageMeta />
       <CustomCursor />
       {/* TEST : la tache d'encre de l'accueil reste en fond sur les pages */}

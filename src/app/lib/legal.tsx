@@ -27,7 +27,7 @@ export function ToFill({ value, label }: { value: string; label: string }) {
 
 export function LegalLayout({ title, updated, children }: { title: string; updated: string; children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-white pt-32 pb-20">
+    <div className="site-surface min-h-screen bg-white pt-32 pb-20">
       <article
         className="max-w-3xl mx-auto px-6 text-gray-800 leading-relaxed [&_h2]:text-2xl [&_h2]:mt-12 [&_h2]:mb-4 [&_h2]:text-black [&_p]:mb-4 [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:pl-6 [&_li]:mb-1 [&_a]:underline"
         style={{ fontFamily: '"aktiv-grotesk-condensed", sans-serif', fontWeight: 400 }}

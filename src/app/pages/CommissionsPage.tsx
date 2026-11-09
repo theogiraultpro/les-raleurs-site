@@ -141,7 +141,7 @@ export default function CommissionsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white pt-24 pb-16">
+    <div className="site-surface min-h-screen bg-white pt-24 pb-16">
       <div className="max-w-7xl mx-auto px-6">
         {/* Hero Section */}
         <motion.div

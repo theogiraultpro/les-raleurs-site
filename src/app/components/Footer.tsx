@@ -4,7 +4,7 @@ import { CONTACT_EMAIL } from '../lib/contact';
 export function Footer() {
   return (
     <footer
-      className="border-t border-gray-100 bg-white"
+      className="site-surface border-t border-gray-100 bg-white"
       style={{ fontFamily: '"aktiv-grotesk-condensed", sans-serif', fontWeight: 400 }}
     >
       <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row gap-4 md:items-center md:justify-between text-sm text-gray-500">

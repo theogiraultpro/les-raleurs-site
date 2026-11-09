@@ -46,7 +46,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
 
   // Écran blanc très bref le temps de lire le contenu, pour ne jamais afficher
   // une version périmée (œuvre masquée, prix modifié…).
-  if (!content) return <div className="min-h-screen bg-white" />;
+  if (!content) return <div className="site-surface min-h-screen bg-white" />;
 
   return <ContentContext.Provider value={content}>{children}</ContentContext.Provider>;
 }

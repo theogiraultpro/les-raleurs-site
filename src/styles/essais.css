@@ -1,0 +1,60 @@
+/*
+ * Essais de design — actifs seulement sur le site d'essai (voir src/app/lib/testSite.ts).
+ * Règles hors @layer : elles passent devant les classes Tailwind sans !important.
+ */
+
+/* ---------- Essai « vert » : fond #00541C, titres #FFFCF2 ---------- */
+html.essai-vert {
+  --essai-fond: #00541c;
+  --essai-titre: #fffcf2;
+  --essai-texte: #fffcf2;
+  --essai-texte-doux: rgba(255, 252, 242, 0.72);
+  --essai-filet: rgba(255, 252, 242, 0.16);
+  background-color: var(--essai-fond);
+}
+
+/* Fonds de page, en-tête, menu mobile, pied de page */
+html.essai-vert .site-surface {
+  background-color: var(--essai-fond);
+  color: var(--essai-texte);
+  border-color: var(--essai-filet);
+}
+
+/* Les blocs clairs (cartes, panier, favoris, boutons blancs) gardent leurs couleurs d'origine. */
+html.essai-vert .site-surface :is(.bg-white, .bg-gray-50, .bg-gray-100):not(.site-surface) {
+  color: #000;
+}
+
+/* Titres posés sur le vert */
+html.essai-vert .site-surface :is(h1, h2, h3, h4):not(:is(.bg-white, .bg-gray-50, .bg-gray-100, .bg-black):not(.site-surface) *) {
+  color: var(--essai-titre);
+}
+
+/* Textes noirs ou gris posés sur le vert : passés en crème pour rester lisibles */
+html.essai-vert .site-surface :is(.text-black, .text-gray-800, .text-gray-700):not(:is(.bg-white, .bg-gray-50, .bg-gray-100):not(.site-surface) *):not(:is(.bg-white, .bg-gray-50, .bg-gray-100):not(.site-surface)) {
+  color: var(--essai-texte);
+}
+html.essai-vert .site-surface :is(.text-gray-600, .text-gray-500, .text-gray-400):not(:is(.bg-white, .bg-gray-50, .bg-gray-100):not(.site-surface) *):not(:is(.bg-white, .bg-gray-50, .bg-gray-100):not(.site-surface)) {
+  color: var(--essai-texte-doux);
+}
+html.essai-vert .site-surface :is(.border-gray-100, .border-gray-200):not(:is(.bg-white, .bg-gray-50, .bg-gray-100):not(.site-surface) *) {
+  border-color: var(--essai-filet);
+}
+
+/* En-tête et pied de page */
+html.essai-vert .site-header {
+  border-color: var(--essai-filet);
+}
+html.essai-vert .site-header :is(a, button):hover {
+  background-color: rgba(255, 252, 242, 0.1);
+}
+html.essai-vert .site-surface nav button:hover,
+html.essai-vert footer a:hover {
+  color: var(--essai-titre);
+  opacity: 0.8;
+}
+
+/* Listes déroulantes : le menu natif reste sur fond clair */
+html.essai-vert .site-surface option {
+  color: #000;
+}
