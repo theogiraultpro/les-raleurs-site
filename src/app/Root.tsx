@@ -1,13 +1,16 @@
 import { Outlet, useLocation } from 'react-router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Header } from './components/Header';
 import CustomCursor from './components/CustomCursor';
 import { Cart } from './components/Cart';
 import { Favorites } from './components/Favorites';
 import { Footer } from './components/Footer';
 import { PageMeta } from './components/PageMeta';
-import { PersistentStain } from './components/PersistentStain';
+import { landingEnabled } from './lib/landing';
 import { itemKey, type ItemRef } from './content/pricing';
+
+// Chargée seulement là où la bulle d'encre est active (site d'essai).
+const PersistentStain = lazy(() => import('./components/PersistentStain').then((m) => ({ default: m.PersistentStain })));
 
 /** Article du panier : la référence (œuvre + format ou visuel) fait foi, le prix n'est qu'indicatif. */
 export interface CartItem extends ItemRef {
@@ -114,7 +117,11 @@ export default function Root() {
       <PageMeta />
       <CustomCursor />
       {/* TEST : la tache d'encre de l'accueil reste en fond sur les pages */}
-      {location.pathname !== '/' && <PersistentStain />}
+      {landingEnabled && location.pathname !== '/' && (
+        <Suspense fallback={null}>
+          <PersistentStain />
+        </Suspense>
+      )}
       {location.pathname !== '/' && (
         <Header
           cartCount={totalItems}
