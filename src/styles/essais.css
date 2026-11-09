@@ -41,17 +41,28 @@ html.essai-vert .site-surface :is(.border-gray-100, .border-gray-200):not(:is(.b
   border-color: var(--essai-filet);
 }
 
-/* En-tête et pied de page */
+/* Barre du haut : fond crème, textes et icônes verts */
 html.essai-vert .site-header {
-  border-color: var(--essai-filet);
+  background-color: var(--essai-titre);
+  color: var(--essai-fond);
+  border-color: rgba(0, 84, 28, 0.12);
 }
-html.essai-vert .site-header :is(a, button):hover {
-  background-color: rgba(255, 252, 242, 0.1);
+/* Survol : léger voile vert sur les icônes seulement (rien sur le logo) */
+html.essai-vert .site-header .p-2.rounded-full:hover {
+  background-color: rgba(0, 84, 28, 0.08);
 }
-html.essai-vert .site-surface nav button:hover,
+html.essai-vert .site-header nav button:hover {
+  color: var(--essai-fond);
+  opacity: 0.7;
+}
 html.essai-vert footer a:hover {
   color: var(--essai-titre);
   opacity: 0.8;
+}
+
+/* Tache d'encre (bulle, éclaboussure, tache gardée en fond) en crème */
+html.essai-vert .ink-fill {
+  fill: var(--essai-titre);
 }
 
 /* Listes déroulantes : le menu natif reste sur fond clair */

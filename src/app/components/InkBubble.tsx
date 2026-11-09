@@ -286,7 +286,7 @@ function makeSplat(x: number, y: number, r: number, direction: number | null): S
 export function SplatShapes({ splat, animated }: { splat: Splat; animated: boolean }) {
   const from = (scale: number) => (animated ? { scale } : false);
   return (
-    <g fill={INK}>
+    <g className="ink-fill" fill={INK}>
       {splat.flecks.map((d, i) => (
         <motion.path
           key={i}
@@ -819,7 +819,7 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
             style={{ overflow: 'visible' }}
           >
             <defs>
-              {/* Matière liquide : les formes proches se relient par des ponts d'encre. */}
+              {/* Matière liquide : les formes proches se relient par des ponts d'encre (couleur de l'encre conservée). */}
               <filter
                 ref={filterRef}
                 id={gooId}
@@ -831,10 +831,10 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
                 colorInterpolationFilters="sRGB"
               >
                 <feGaussianBlur ref={blurRef} in="SourceGraphic" stdDeviation={radius * 0.11} result="blur" />
-                <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 30 -13" />
+                <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 30 -13" />
               </filter>
             </defs>
-            <g ref={gooRef} fill={INK}>
+            <g ref={gooRef} className="ink-fill" fill={INK}>
               <g ref={bodyRef}>
                 <path ref={shapeRef} d={bubblePath(radius, 0, 1, phases)} />
               </g>
