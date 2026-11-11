@@ -8,7 +8,7 @@ export const SITE_URL = 'https://lesraleurs.com';
 export const SITE_NAME = 'Les Râleurs';
 export const AUTHOR = 'Théo Girault';
 const INSTAGRAM = 'https://www.instagram.com/raleurs_/';
-const DEFAULT_IMAGE = '/og-image.jpg';
+const DEFAULT_IMAGE = '/og-share.jpg';
 
 export interface PageMeta {
   title: string;
@@ -30,9 +30,9 @@ const BIO =
 
 const STATIC_PAGES: Record<string, Omit<PageMeta, 'path' | 'type'>> = {
   '': {
-    title: 'Les Râleurs — Illustrations de Théo Girault, l’art d’être parisien.ne',
+    title: 'Les Râleurs — L’art d’être parisien.ne',
     description:
-      "Illustrations, prints d'art et graphisme de Théo Girault. Les Râleurs : une foule de personnages loufoques et satiriques, nés d'une tache de couleur et inspirés du quotidien parisien.",
+      "Ils râlent dans le métro, refont le monde au comptoir et dansent jusqu'à l'aube : les Râleurs, personnages loufoques de l'illustrateur Théo Girault. Prints d'art à commander en ligne.",
   },
   illustrations: {
     title: "Illustrations et prints d'art — Les Râleurs",
