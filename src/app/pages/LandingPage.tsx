@@ -30,12 +30,13 @@ export default function LandingPage() {
     <main className="site-surface fixed inset-0 touch-none select-none overflow-hidden bg-white">
       <h1 className="sr-only">Les Râleurs — illustrations et graphisme</h1>
 
-      <img
-        src={logo}
-        alt="Les Râleurs"
-        draggable={false}
-        className="pointer-events-none fixed bottom-6 left-1/2 h-9 w-auto -translate-x-1/2 select-none md:bottom-8 md:h-11"
-      />
+      {/* Bas de page fixe : petite phrase au-dessus du logo. */}
+      <div className="pointer-events-none fixed bottom-6 left-1/2 flex -translate-x-1/2 select-none flex-col items-center gap-2 md:bottom-8 md:gap-3">
+        <p className="whitespace-nowrap text-[11px] uppercase tracking-[0.25em] text-black/60 md:text-xs">
+          Tout part d’une tache
+        </p>
+        <img src={logo} alt="Les Râleurs" draggable={false} className="h-9 w-auto md:h-11" />
+      </div>
 
       <InkBubble onSplat={saveStain} onBurst={enterGallery} />
 
