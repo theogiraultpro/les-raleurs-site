@@ -1,6 +1,6 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
 import { canHover } from '../lib/mobile';
-import { ShoppingCart, Heart } from 'lucide-react';
+import { ShoppingCart, Heart, Images } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { responsiveImage } from '../lib/image';
 
@@ -19,9 +19,11 @@ interface ProductCardProps {
   onClick: () => void;
   /** Première rangée : image chargée tout de suite, en priorité. */
   priority?: boolean;
+  /** Série : nombre de visuels, affiché en pastille sur l'image. */
+  imageCount?: number;
 }
 
-export function ProductCard({ id, name, price, image, category, onAddToCart, onToggleFavorite, isFavorite = false, onClick, priority }: ProductCardProps) {
+export function ProductCard({ id, name, price, image, category, onAddToCart, onToggleFavorite, isFavorite = false, onClick, priority, imageCount }: ProductCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
   // Favori : au survol sur ordinateur, toujours visible sur téléphone (pas de survol au doigt).
@@ -128,6 +130,14 @@ export function ProductCard({ id, name, price, image, category, onAddToCart, onT
             animate={{ opacity: isHovered ? 1 : 0 }}
             transition={{ duration: 0.3 }}
           />
+
+          {/* Compteur de visuels (séries) */}
+          {imageCount !== undefined && imageCount > 1 && (
+            <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-black shadow-md backdrop-blur-sm">
+              <Images size={14} strokeWidth={2} aria-hidden="true" />
+              <span>{imageCount} visuels</span>
+            </div>
+          )}
 
           {/* Like Button */}
           <motion.button

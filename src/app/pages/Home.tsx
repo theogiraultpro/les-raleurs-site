@@ -16,6 +16,7 @@ export default function Home() {
     image: item.card.image,
     category: item.card.subtitle,
     path: `/${item.slug}`,
+    imageCount: item.kind === 'series' ? item.images?.length : undefined,
     work: item,
   }));
   const { handleAddToCart, handleToggleFavorite, isFavorite } = useOutletContext<{
@@ -85,6 +86,7 @@ export default function Home() {
                   price={product.price}
                   image={product.image}
                   category={product.category}
+                  imageCount={product.imageCount}
                   onAddToCart={(p) => {
                     const { work } = product;
                     if (work.sold) return;
