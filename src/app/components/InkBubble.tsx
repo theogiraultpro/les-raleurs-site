@@ -711,8 +711,13 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
       }
       if (list) {
         blurRef.current?.setAttribute('stdDeviation', f2(radius * 0.15));
-        let ext = radius * 2.2;
-        for (const piece of list) ext = Math.max(ext, Math.abs(piece.x) + piece.r * 2.2, Math.abs(piece.y) + piece.r * 2.2);
+        // Zone large : morceaux étirés, déformation et étirement de la bulle,
+        // flou du filtre… rien ne doit être coupé par le bord de la zone.
+        let ext = radius * 5;
+        for (const piece of list) {
+          const reach = Math.max(Math.abs(piece.x), Math.abs(piece.y)) + Math.max(piece.r * 2.5, radius * 1.5);
+          ext = Math.max(ext, reach * 1.3 + radius);
+        }
         const filter = filterRef.current;
         if (filter) {
           filter.setAttribute('x', f2(-ext));
