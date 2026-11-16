@@ -360,7 +360,7 @@ export const defaultContent: SiteContent = {
       { src: img_Vinyle_JNY_Ob_League_1, caption: "Pochette JNY OB\\" },
       { src: img_Vinyle_Wel_Done_Ob_League_1, caption: "Pochette Wel\\" },
     ],
-    card: { title: "Ladal Event 2", subtitle: "Graphisme • Direction Artistique", teaser: "Création graphique pour le deuxième événement de notre collectif Ladale", image: img_Affiche_event_2 },
+    card: { title: "Ladal'Event 2", subtitle: "Graphisme • Direction Artistique", teaser: "Création graphique pour le deuxième event de notre collectif Ladale", image: img_Affiche_event_2 },
   },
   {
     slug: "collectif-attuned",
@@ -418,7 +418,7 @@ export const defaultContent: SiteContent = {
   },
   {
     slug: "ladal-event-1",
-    title: "Ladale Event 1",
+    title: "Ladal'Event 1",
     subtitle: "Graphisme • Typographie • Événementiel",
     description: "Premier évènement du collectif d'art urbain Ladale",
     images: [
@@ -431,7 +431,7 @@ export const defaultContent: SiteContent = {
       { src: img_Flyers, caption: "Flyers" },
       { src: img_Logo_2, caption: "Logo" },
     ],
-    card: { title: "Ladal Event 1", subtitle: "Graphisme • Communication Visuelle • Événementiel", teaser: "Création graphique pour le premier événement du collectif Ladale + Logo", image: img_a623dc3cde04ed12dc40d07baebbbed0cfb4c264 },
+    card: { title: "Ladal'Event 1", subtitle: "Graphisme • Communication Visuelle • Événementiel", teaser: "Création graphique pour le premier événement du collectif Ladale + Logo", image: img_a623dc3cde04ed12dc40d07baebbbed0cfb4c264 },
   },
   {
     slug: "la-friche-de-solvay",
