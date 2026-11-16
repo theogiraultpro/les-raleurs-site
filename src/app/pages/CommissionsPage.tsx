@@ -510,7 +510,7 @@ export default function CommissionsPage() {
                 Droits d'utilisation
               </h3>
               <p className="text-gray-600" style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 400 }}>
-                Définies selon le projet. Usage commercial avec droits étendus disponibles.
+                Définis selon le projet. Usage commercial avec droits étendus disponibles.
               </p>
             </div>
           </div>

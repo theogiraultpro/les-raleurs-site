@@ -1,7 +1,7 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
-import { canHover } from '../lib/mobile';
+import { canHover, isPhone } from '../lib/mobile';
 import { useNavigate, useOutletContext } from 'react-router';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, ShoppingCart } from 'lucide-react';
 import Lightbox from '../components/Lightbox';
 import { Description } from '../components/Description';
@@ -86,6 +86,22 @@ export default function GalleryPage({ title, subtitle, description, images, shop
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
+  // Téléphone : les visuels défilent au doigt (glissé horizontal, aimanté).
+  const swipeRef = useRef<HTMLDivElement>(null);
+  const onSwipeScroll = () => {
+    const el = swipeRef.current;
+    if (!el || !el.clientWidth) return;
+    const index = Math.round(el.scrollLeft / el.clientWidth);
+    if (index !== currentIndex && index >= 0 && index < images.length) setCurrentIndex(index);
+  };
+  useEffect(() => {
+    const el = swipeRef.current;
+    if (!el || !el.clientWidth) return;
+    if (Math.round(el.scrollLeft / el.clientWidth) !== currentIndex) {
+      el.scrollTo({ left: currentIndex * el.clientWidth, behavior: 'smooth' });
+    }
+  }, [currentIndex]);
+
   if (!current) return null;
 
   return (
@@ -101,7 +117,27 @@ export default function GalleryPage({ title, subtitle, description, images, shop
             className="relative"
           >
             <div className="relative">
-              {/* Passage d'un visuel à l'autre : instantané, sans animation */}
+              {isPhone && hasMany ? (
+                <div
+                  ref={swipeRef}
+                  onScroll={onSwipeScroll}
+                  className="flex snap-x snap-mandatory items-center overflow-x-auto rounded-[2rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  style={{ boxShadow: '0 30px 60px -20px rgba(0, 0, 0, 0.35)' }}
+                >
+                  {images.map((image, index) => (
+                    <img
+                      key={`${image.src}-${index}`}
+                      {...responsiveImage(image.src, '100vw')}
+                      alt={`${cleanTitle} - ${image.caption}`}
+                      loading={index < 2 ? 'eager' : 'lazy'}
+                      draggable={false}
+                      className="h-auto w-full shrink-0 snap-center"
+                      onClick={() => setLightboxOpen(true)}
+                    />
+                  ))}
+                </div>
+              ) : (
+              /* Passage d'un visuel à l'autre : instantané, sans animation */
                 <motion.div
                   animate={{ scale: isHovered ? 1.05 : 1 }}
                   transition={{ scale: { type: 'tween', duration: 0.35, ease: 'easeOut' } }}
@@ -140,9 +176,12 @@ export default function GalleryPage({ title, subtitle, description, images, shop
                     </motion.button>
                   )}
                 </motion.div>
+              )}
 
               {hasMany && (
                 <>
+                  {!isPhone && (
+                  <>
                   <button
                     onClick={prevImage}
                     className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-3 rounded-full shadow-lg transition-all hover:scale-110"
@@ -157,7 +196,14 @@ export default function GalleryPage({ title, subtitle, description, images, shop
                   >
                     <ChevronRight className="w-6 h-6" />
                   </button>
-                  <div className="flex justify-center gap-2 mt-6">
+                  </>
+                  )}
+                  {isPhone && images.length > 8 ? (
+                  <p className="mt-5 text-center text-sm text-gray-500" style={{ fontFamily: font }}>
+                    {currentIndex + 1} / {images.length}
+                  </p>
+                  ) : (
+                  <div className="flex flex-wrap justify-center gap-2 mt-6">
                     {images.map((_, index) => (
                       <button
                         key={index}
@@ -169,6 +215,7 @@ export default function GalleryPage({ title, subtitle, description, images, shop
                       />
                     ))}
                   </div>
+                  )}
                 </>
               )}
             </div>
@@ -225,8 +272,8 @@ export default function GalleryPage({ title, subtitle, description, images, shop
         </div>
       </div>
 
-      {/* Bande de vignettes */}
-      {hasMany && (
+      {/* Bande de vignettes (pas sur téléphone : on y fait défiler au doigt) */}
+      {hasMany && !isPhone && (
         <div className="w-full mt-24 pb-20">
           <div className="max-w-7xl mx-auto px-6">
             <h3 className="text-2xl mb-8 text-center" style={{ fontFamily: font, fontWeight: 700 }}>
