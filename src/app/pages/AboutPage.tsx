@@ -181,9 +181,9 @@ export default function AboutPage() {
               </motion.button>
 
               <p className="text-center text-gray-500 text-sm" style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 400 }}>
-                Vous pouvez aussi écrire directement à{' '}
-                <a href={`mailto:${CONTACT_EMAIL}`} className="underline hover:text-black">
-                  {CONTACT_EMAIL}
+                Vous pouvez aussi me contacter au{' '}
+                <a href="tel:+33648967753" className="underline hover:text-black">
+                  +33.6.48.96.77.53
                 </a>
               </p>
             </form>
