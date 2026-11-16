@@ -74,7 +74,7 @@ Un portrait collectif où chaque visage raconte une histoire, chaque expression 
     highQualityImage: highQualityImage,
     description: `La nuit appartient aux Râleurs qui transforment chaque teuf en œuvre d'art collective.
 
-Bass lourdes, visages déformés par la musique et l'instant présent qui devient éternité.
+Basses lourdes, visages déformés par la musique et l'instant présent qui devient éternité.
 
 Une célébration de la culture underground et de l'esprit rebelle qui l'anime.`,
   },

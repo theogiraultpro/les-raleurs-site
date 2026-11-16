@@ -69,12 +69,12 @@ export default function CommissionsPage() {
 
   const services = [
     {
-      title: 'Illustrations Personnalisées',
+      title: 'Illustrations personnalisées',
       description: 'Création de personnages ou scènes uniques selon votre vision',
       icon: Palette,
     },
     {
-      title: 'Commandes sur Mesure',
+      title: 'Commandes sur mesure',
       description: 'Adaptées à vos besoins spécifiques (format, style, utilisation)',
       icon: Pencil,
     },
@@ -87,13 +87,13 @@ export default function CommissionsPage() {
 
   const pricing = [
     {
-      type: 'Portrait Personnalisé',
-      price: 'À partir de 150€',
+      type: 'Portrait personnalisé',
+      price: 'À partir de 150 €',
       details: 'Un personnage Râleur à votre image',
     },
     {
-      type: 'Illustration Commerciale',
-      price: 'À partir de 300€',
+      type: 'Illustration commerciale',
+      price: 'À partir de 300 €',
       details: 'Usage commercial et droits étendus',
     },
     {
@@ -102,7 +102,7 @@ export default function CommissionsPage() {
       details: 'Plusieurs illustrations coordonnées',
     },
     {
-      type: 'Collaboration Événement',
+      type: 'Collaboration événement',
       price: 'Sur devis',
       details: 'Projet spécifique pour votre événement',
     },
@@ -363,7 +363,7 @@ export default function CommissionsPage() {
                 </div>
                 <div>
                   <label className="block mb-2" style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 800 }}>
-                    Email *
+                    E-mail *
                   </label>
                   <input
                     type="email"
@@ -379,7 +379,7 @@ export default function CommissionsPage() {
 
               <div>
                 <label className="block mb-2" style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 800 }}>
-                  Type de Service *
+                  Type de service *
                 </label>
                 <select
                   name="serviceType"
@@ -388,11 +388,11 @@ export default function CommissionsPage() {
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none transition-colors"
                   style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 400 }}
                 >
-                  <option value="illustration-personnalisee">Illustration Personnalisée</option>
-                  <option value="portrait-personnalise">Portrait Personnalisé</option>
-                  <option value="illustration-commerciale">Illustration Commerciale</option>
+                  <option value="illustration-personnalisee">Illustration personnalisée</option>
+                  <option value="portrait-personnalise">Portrait personnalisé</option>
+                  <option value="illustration-commerciale">Illustration commerciale</option>
                   <option value="serie-collection">Série / Collection</option>
-                  <option value="collaboration">Collaboration Événement</option>
+                  <option value="collaboration">Collaboration événement</option>
                 </select>
               </div>
 
@@ -406,7 +406,7 @@ export default function CommissionsPage() {
                     name="budget"
                     value={formData.budget}
                     onChange={handleChange}
-                    placeholder="Ex: 300€"
+                    placeholder="Ex. : 300 €"
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none transition-colors"
                     style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 400 }}
                   />
@@ -420,7 +420,7 @@ export default function CommissionsPage() {
                     name="deadline"
                     value={formData.deadline}
                     onChange={handleChange}
-                    placeholder="Ex: 2 semaines"
+                    placeholder="Ex. : 2 semaines"
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-black focus:outline-none transition-colors"
                     style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 400 }}
                   />
@@ -501,7 +501,7 @@ export default function CommissionsPage() {
                 Paiement
               </h3>
               <p className="text-gray-600" style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 400 }}>
-                50% à la commande, 50% à la livraison. Virement bancaire ou PayPal.
+                50 % à la commande, 50 % à la livraison. Virement bancaire ou PayPal.
               </p>
             </div>
             <div className="text-center">

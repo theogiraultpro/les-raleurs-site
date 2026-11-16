@@ -59,7 +59,7 @@ export default function GraphismePage() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.8 }}
           >
-            Créations graphiques • Identités visuelles • Direction Artistique
+            Créations graphiques • Identités visuelles • Direction artistique
           </motion.p>
         </div>
       </motion.section>

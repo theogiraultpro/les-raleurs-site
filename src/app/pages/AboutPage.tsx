@@ -107,7 +107,7 @@ export default function AboutPage() {
                   required
                 />
                 <LiquidInput
-                  label="Email"
+                  label="E-mail"
                   type="email"
                   name="email"
                   value={formData.email}

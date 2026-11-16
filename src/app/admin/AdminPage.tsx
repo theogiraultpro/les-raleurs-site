@@ -1,6 +1,7 @@
 // Page /admin : gestion des illustrations et des projets.
 // Protégée par le mot de passe ADMIN_PASSWORD (vérifié côté serveur).
 import { useEffect, useMemo, useState } from 'react';
+import { applySpellingFixes } from './spellingFixes';
 import { ArrowDown, ArrowLeft, ArrowUp, EyeOff, ExternalLink, Loader2, LogOut, Plus } from 'lucide-react';
 import { defaultContent } from '../content/defaultContent';
 import type { Illustration, Project, SiteContent } from '../content/types';
@@ -154,6 +155,8 @@ function Editor({ storage, onLogout }: { storage: SessionInfo['storage']; onLogo
   }, []);
 
   const dirty = useMemo(() => content !== null && JSON.stringify(content) !== saved, [content, saved]);
+  // Corrections d'orthographe en attente dans les textes publiés.
+  const pendingFixes = useMemo(() => (content ? applySpellingFixes(content).count : 0), [content]);
 
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
@@ -250,6 +253,21 @@ function Editor({ storage, onLogout }: { storage: SessionInfo['storage']; onLogo
             <LogOut size={18} />
           </IconButton>
         </div>
+        {pendingFixes > 0 && (
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 pb-3 text-sm">
+            <p className="text-neutral-700">
+              {pendingFixes} correction{pendingFixes > 1 ? 's' : ''} d'orthographe proposée{pendingFixes > 1 ? 's' : ''} dans les textes des œuvres et projets.
+            </p>
+            <button
+              type="button"
+              onClick={() => content && setContent(applySpellingFixes(content).content)}
+              className="rounded-full border border-black px-3 py-1 font-medium hover:bg-black hover:text-white"
+            >
+              Appliquer les corrections
+            </button>
+            <span className="text-neutral-500">puis « Publier les changements ».</span>
+          </div>
+        )}
         {(status.message || storage === 'none' || storage === 'local' || isFirstPublish || isPreview) && (
           <div className="mx-auto max-w-6xl space-y-1 px-4 pb-3 text-sm">
             {isPreview && (
