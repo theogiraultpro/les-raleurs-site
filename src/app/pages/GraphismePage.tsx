@@ -14,6 +14,7 @@ export default function GraphismePage() {
     image: item.card.image,
     category: item.card.subtitle,
     path: `/${item.slug}`,
+    imageCount: item.images?.length,
   }));
   const { handleToggleFavorite, isFavorite } = useOutletContext<{
     handleToggleFavorite: (item: any) => void;

@@ -16,7 +16,7 @@ export default function Home() {
     image: item.card.image,
     category: item.card.subtitle,
     path: `/${item.slug}`,
-    imageCount: item.kind === 'series' ? item.images?.length : undefined,
+    imageCount: item.kind === 'series' ? item.images?.length : 1,
     work: item,
   }));
   const { handleAddToCart, handleToggleFavorite, isFavorite } = useOutletContext<{

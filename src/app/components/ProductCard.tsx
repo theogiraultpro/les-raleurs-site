@@ -1,6 +1,7 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
 import { canHover } from '../lib/mobile';
-import { ShoppingCart, Heart, Images } from 'lucide-react';
+import { ShoppingCart, Heart } from 'lucide-react';
+import { ImageCountBadge } from './ImageCountBadge';
 import { useRef, useState } from 'react';
 import { responsiveImage } from '../lib/image';
 
@@ -19,7 +20,7 @@ interface ProductCardProps {
   onClick: () => void;
   /** Première rangée : image chargée tout de suite, en priorité. */
   priority?: boolean;
-  /** Série : nombre de visuels, affiché en pastille sur l'image. */
+  /** Nombre d'images du dossier (pastille affichée à partir de 2). */
   imageCount?: number;
 }
 
@@ -131,13 +132,7 @@ export function ProductCard({ id, name, price, image, category, onAddToCart, onT
             transition={{ duration: 0.3 }}
           />
 
-          {/* Compteur de visuels (séries) */}
-          {imageCount !== undefined && imageCount > 1 && (
-            <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-black shadow-md backdrop-blur-sm">
-              <Images size={14} strokeWidth={2} aria-hidden="true" />
-              <span>{imageCount} visuels</span>
-            </div>
-          )}
+          <ImageCountBadge count={imageCount} />
 
           {/* Like Button */}
           <motion.button

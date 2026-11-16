@@ -3,6 +3,7 @@ import { canHover } from '../lib/mobile';
 import { Heart } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { responsiveImage } from '../lib/image';
+import { ImageCountBadge } from './ImageCountBadge';
 
 interface PortfolioCardProps {
   id: string;
@@ -14,6 +15,8 @@ interface PortfolioCardProps {
   onToggleFavorite?: (item: { id: string; title: string; image: string; type: 'portfolio'; route: string }) => void;
   isFavorite?: boolean;
   route?: string;
+  /** Nombre d'images du projet (pastille affichée à partir de 2). */
+  imageCount?: number;
 }
 
 export function PortfolioCard({ 
@@ -25,7 +28,8 @@ export function PortfolioCard({
   onClick, 
   onToggleFavorite,
   isFavorite = false,
-  route = ''
+  route = '',
+  imageCount,
 }: PortfolioCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -135,6 +139,8 @@ export function PortfolioCard({
             animate={{ opacity: isHovered ? 1 : 0 }}
             transition={{ duration: 0.3 }}
           />
+
+          <ImageCountBadge count={imageCount} />
 
           {/* Like Button */}
           <motion.button
