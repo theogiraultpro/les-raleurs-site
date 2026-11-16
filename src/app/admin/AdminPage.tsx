@@ -1,7 +1,7 @@
 // Page /admin : gestion des illustrations et des projets.
 // Protégée par le mot de passe ADMIN_PASSWORD (vérifié côté serveur).
 import { useEffect, useMemo, useState } from 'react';
-import { applySpellingFixes } from './spellingFixes';
+import { applySpellingFixes } from '../content/spellingFixes';
 import { ArrowDown, ArrowLeft, ArrowUp, EyeOff, ExternalLink, Loader2, LogOut, Plus } from 'lucide-react';
 import { defaultContent } from '../content/defaultContent';
 import type { Illustration, Project, SiteContent } from '../content/types';

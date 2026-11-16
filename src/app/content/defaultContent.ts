@@ -414,7 +414,7 @@ export const defaultContent: SiteContent = {
       { src: img_E_dition_Fixe_Le_Mouvement_9_1, caption: "Édition" },
       { src: img_E_dition, caption: "Édition" },
     ],
-    card: { title: "Fixe le Mouvement", subtitle: "Édition Graphique • Photographie • Mouvement", teaser: "Création éditoriale graphique autour du mouvement et de la photographie", image: img_7a56d0bf846e7101cf8a0885ffef3566428620dd },
+    card: { title: "Fixe le Mouvement", subtitle: "Édition Graphique • Photographie • Mouvement", teaser: "Édition graphique autour du mouvement et de la photographie", image: img_7a56d0bf846e7101cf8a0885ffef3566428620dd },
   },
   {
     slug: "ladal-event-1",

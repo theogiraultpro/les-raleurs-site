@@ -1,7 +1,8 @@
 // Corrections d'orthographe du 16 nov. 2026 pour les textes publiés (œuvres et
-// projets). Proposées dans /admin : un clic les applique au brouillon, puis
-// « Publier les changements » les met en ligne. Sans effet une fois appliquées.
-import type { SiteContent } from '../content/types';
+// projets). Le serveur les applique à la lecture (api/_lib/storage.ts), donc elles
+// sont en ligne tout de suite ; la prochaine publication depuis /admin les
+// enregistre pour de bon. Sans effet sur un texte déjà corrigé.
+import type { SiteContent } from './types';
 
 export const SPELLING_FIXES: Array<[find: string, replace: string]> = [
   ['bombes à peintures', 'bombes de peinture'],
@@ -19,7 +20,8 @@ export const SPELLING_FIXES: Array<[find: string, replace: string]> = [
   ['pour The North Face et sport de Montagne', 'pour The North Face autour du sport de montagne'],
   ['pour le deuxième de notre Collectif Ladale', 'pour le deuxième événement de notre collectif Ladale'],
   ['Attuned et Création du Logo', 'Attuned et création du logo'],
-  ['Création éditorial graphique', 'Création éditoriale graphique'],
+  ['Création éditorial graphique autour', 'Édition graphique autour'],
+  ['Création éditoriale graphique autour', 'Édition graphique autour'],
   ["collectif d'Art Urbain Ladale", "collectif d'art urbain Ladale"],
   ['Découverture d’un lieu abandonner', 'Découverte d’un lieu abandonné'],
 ];

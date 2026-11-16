@@ -6,6 +6,7 @@
 import { get, put } from '@vercel/blob';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, normalize } from 'node:path';
+import { applySpellingFixes } from '../../src/app/content/spellingFixes.js';
 
 export const CONTENT_PATH = 'content/site.json';
 const LOCAL_DIR = join(process.cwd(), '.local-storage');
@@ -22,7 +23,18 @@ function localPath(pathname: string): string {
 }
 
 /** Contenu publié, ou null s'il n'a jamais été enregistré. */
+/** Contenu publié, avec les corrections d'orthographe appliquées (voir spellingFixes.ts). */
 export async function readContent(): Promise<string | null> {
+  const raw = await readRawContent();
+  if (!raw) return raw;
+  try {
+    return JSON.stringify(applySpellingFixes(JSON.parse(raw)).content);
+  } catch {
+    return raw;
+  }
+}
+
+async function readRawContent(): Promise<string | null> {
   const mode = storageMode();
   if (mode === 'blob') {
     const result = await get(CONTENT_PATH, { access: 'public', useCache: false }).catch(() => null);
