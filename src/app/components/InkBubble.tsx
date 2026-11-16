@@ -850,8 +850,8 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
           onPointerLeave={() => (hovered.current = false)}
           onFocus={() => (hovered.current = true)}
           onBlur={() => (hovered.current = false)}
-          className="fixed left-0 top-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-4"
-          style={{ width: size, height: size, transform: 'translate(-9999px, -9999px)', WebkitTapHighlightColor: 'transparent', willChange: 'transform' }}
+          className="fixed left-0 top-0 appearance-none rounded-full border-0 bg-transparent p-0 outline-none focus:outline-none focus-visible:outline-none"
+          style={{ width: size, height: size, transform: 'translate(-9999px, -9999px)', WebkitTapHighlightColor: 'transparent', willChange: 'transform', outline: 'none', boxShadow: 'none' }}
         >
           <motion.svg
             width={size}
