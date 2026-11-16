@@ -211,7 +211,7 @@ export default function AboutPage() {
               whileTap={{ scale: 0.95 }}
             >
               <Instagram size={24} />
-              <span style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 800 }}>
+              <span className="text-lg" style={{ fontFamily: '"aktiv-grotesk-condensed", sans-serif', fontWeight: 400 }}>
                 @raleurs_
               </span>
             </motion.a>
@@ -225,7 +225,7 @@ export default function AboutPage() {
               whileTap={{ scale: 0.95 }}
             >
               <img src={behanceLogo} alt="" width={24} height={24} className="h-6 w-6" draggable={false} />
-              <span style={{ fontFamily: 'aktiv-grotesk-condensed', fontWeight: 800 }}>
+              <span className="text-lg" style={{ fontFamily: '"aktiv-grotesk-condensed", sans-serif', fontWeight: 400 }}>
                 Behance
               </span>
             </motion.a>
