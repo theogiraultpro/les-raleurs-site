@@ -149,7 +149,7 @@ export default function PrintPage({ illustration }: { illustration: Illustration
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                T'y es un bon à le mettre<br />dans le panier comme ça le sang
+                Ajouter au panier
               </motion.button>
             )}
 
