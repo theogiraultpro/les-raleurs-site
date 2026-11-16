@@ -316,8 +316,8 @@ export function SplatShapes({ splat, animated }: { splat: Splat; animated: boole
 // ---------- Composant ----------
 
 interface InkBubbleProps {
-  /** Appelé dès l'éclatement, avec l'éclaboussure créée. */
-  onSplat?: (splat: Splat) => void;
+  /** Appelé à chaque éclatement, avec toutes les éclaboussures créées jusque-là. */
+  onSplat?: (splats: Splat[]) => void;
   /** Appelé quand l'éclaboussure a fini de s'étaler. */
   onBurst: () => void;
 }
@@ -340,7 +340,8 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
   const burst = useRef(false);
   const pieces = useRef<Piece[] | null>(null);
   const [radius, setRadius] = useState(56);
-  const [splat, setSplat] = useState<Splat | null>(null);
+  const [splats, setSplats] = useState<Splat[]>([]);
+  const [gone, setGone] = useState(false);
   const [visible, setVisible] = useState(false);
 
   const phases = useMemo(() => Array.from({ length: 6 }, () => Math.random() * Math.PI * 2), []);
@@ -770,13 +771,54 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
     // Direction du coup : celle du dernier geste, sinon au hasard.
     const p = pointer.current;
     const direction = Math.hypot(p.vx, p.vy) > 250 ? Math.atan2(p.vy, p.vx) : null;
-    bodyRef.current?.setAttribute('transform', 'scale(1.14)');
-    window.setTimeout(() => {
-      const created = makeSplat(x, y, radius, direction);
-      setSplat(created);
-      onSplat?.(created);
-    }, reducedMotion ? 0 : 80);
-    window.setTimeout(onBurst, reducedMotion ? 500 : 1150);
+    const delay = reducedMotion ? 0 : 80;
+    const created: Splat[] = [];
+    const add = (splat: Splat) => {
+      created.push(splat);
+      setSplats([...created]);
+      onSplat?.([...created]);
+    };
+
+    const list = pieces.current;
+    if (!list) {
+      bodyRef.current?.setAttribute('transform', 'scale(1.14)');
+      window.setTimeout(() => {
+        add(makeSplat(x, y, radius, direction));
+        setGone(true);
+      }, delay);
+      window.setTimeout(onBurst, reducedMotion ? 500 : 1150);
+      return;
+    }
+
+    // Bulle encore coupée : chaque goutte éclate séparément, en commençant par
+    // celle qu'on a touchée, puis les autres en chaîne (de la plus proche à la plus loin).
+    const center = position.current;
+    const drops = list.map((piece, index) => ({
+      index,
+      x: center.x + piece.x,
+      y: center.y + piece.y,
+      r: piece.r,
+      vx: piece.vx,
+      vy: piece.vy,
+    }));
+    drops.sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y));
+    const step = reducedMotion ? 0 : 110;
+    drops.forEach((drop, order) => {
+      const piece = pieceRefs.current[drop.index];
+      if (piece && !reducedMotion) piece.setAttribute('transform', `${piece.getAttribute('transform') ?? ''} scale(1.14)`);
+      window.setTimeout(() => {
+        // Sens de l'éclaboussure : celui du geste, sinon celui où file la goutte, sinon vers l'extérieur.
+        const own = Math.hypot(drop.vx, drop.vy) > 120 ? Math.atan2(drop.vy, drop.vx) : null;
+        const outward = order === 0 ? null : Math.atan2(drop.y - drops[0].y, drop.x - drops[0].x);
+        const dir = order === 0 ? direction ?? own : own ?? outward;
+        // La goutte touchée éclate là où on a cliqué (si le clic est bien dessus).
+        const onDrop = order === 0 && fromPointer && Math.hypot(drop.x - x, drop.y - y) < drop.r * 1.3;
+        add(makeSplat(onDrop ? x : drop.x, onDrop ? y : drop.y, drop.r, dir));
+        piece?.setAttribute('d', '');
+        if (order === drops.length - 1) setGone(true);
+      }, delay + order * step);
+    });
+    window.setTimeout(onBurst, (reducedMotion ? 500 : 1150) + (drops.length - 1) * step);
   };
 
   const size = radius * 3;
@@ -785,16 +827,18 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
   return (
     <>
       {/* Éclaboussure (dessin vectoriel : nette à toutes les tailles) */}
-      {splat && (
+      {splats.length > 0 && (
         <svg className="pointer-events-none fixed inset-0 h-full w-full" aria-hidden="true" shapeRendering="geometricPrecision">
-          <g transform={`translate(${splat.x} ${splat.y})`}>
-            <SplatShapes splat={splat} animated={!reducedMotion} />
-          </g>
+          {splats.map((splat, i) => (
+            <g key={i} transform={`translate(${splat.x} ${splat.y})`}>
+              <SplatShapes splat={splat} animated={!reducedMotion} />
+            </g>
+          ))}
         </svg>
       )}
 
       {/* La bulle */}
-      {!splat && (
+      {!gone && (
         <button
           ref={buttonRef}
           type="button"

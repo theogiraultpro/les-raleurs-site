@@ -4,10 +4,9 @@
 // Chaque essai ajoute une classe sur <html> (ex. « essai-vert ») ; ses règles
 // sont dans src/styles/essais.css. Pour passer un essai validé sur le site
 // principal : mettre sa valeur à true dans ON_MAIN_SITE.
-const ON_MAIN_SITE = {
-  /** Fond vert #00541C, titres crème #FFFCF2 (essai du 9 nov. 2026). */
-  'essai-vert': false,
-} as const;
+// (essai-vert du 9 nov. 2026 — fond #00541C, titres #FFFCF2 — retiré le 16 nov. :
+// retour aux couleurs de base. Ses règles restent dans l'historique git, commit 5980462.)
+const ON_MAIN_SITE: Record<string, boolean> = {};
 
 const MAIN_SITE = /(^|\.)lesraleurs\.com$/;
 

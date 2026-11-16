@@ -13,9 +13,7 @@ export function PersistentStain() {
     return () => window.removeEventListener('resize', update);
   }, []);
 
-  if (!stain) return null;
-  const x = stain.rx * viewport.w;
-  const y = stain.ry * viewport.h;
+  if (!stain || stain.length === 0) return null;
 
   return (
     <svg
@@ -23,9 +21,11 @@ export function PersistentStain() {
       aria-hidden="true"
       shapeRendering="geometricPrecision"
     >
-      <g transform={`translate(${x.toFixed(1)} ${y.toFixed(1)})`}>
-        <SplatShapes splat={stain.splat} animated={false} />
-      </g>
+      {stain.map(({ splat, rx, ry }, i) => (
+        <g key={i} transform={`translate(${(rx * viewport.w).toFixed(1)} ${(ry * viewport.h).toFixed(1)})`}>
+          <SplatShapes splat={splat} animated={false} />
+        </g>
+      ))}
     </svg>
   );
 }

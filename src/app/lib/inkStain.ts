@@ -4,26 +4,30 @@
 import { useSyncExternalStore } from 'react';
 import type { Splat } from '../components/InkBubble';
 
-export interface StoredStain {
+export interface StoredSplat {
   splat: Splat;
   /** Position du centre en proportion de l'écran (pour suivre les redimensionnements). */
   rx: number;
   ry: number;
 }
 
-const KEY = 'raleurs-ink-stain-v3'; // v3 : jets terminés en goutte
+const KEY = 'raleurs-ink-stain-v4'; // v4 : plusieurs taches (bulle éclatée alors qu'elle était coupée)
+
+/** Une ou plusieurs taches (une par goutte quand la bulle a éclaté coupée). */
+export type StoredStain = StoredSplat[];
 const listeners = new Set<() => void>();
 let current: StoredStain | null = null;
 
 try {
   const saved = sessionStorage.getItem(KEY);
-  if (saved) current = JSON.parse(saved) as StoredStain;
+  const parsed = saved ? JSON.parse(saved) : null;
+  current = Array.isArray(parsed) ? (parsed as StoredStain) : null;
 } catch {
   current = null;
 }
 
-export function saveStain(splat: Splat) {
-  current = { splat, rx: splat.x / window.innerWidth, ry: splat.y / window.innerHeight };
+export function saveStain(splats: Splat[]) {
+  current = splats.map((splat) => ({ splat, rx: splat.x / window.innerWidth, ry: splat.y / window.innerHeight }));
   try {
     sessionStorage.setItem(KEY, JSON.stringify(current));
   } catch {
