@@ -1,8 +1,7 @@
-// Page de garde « bulle d'encre » : mise de côté sur le site principal pendant
-// qu'on la retravaille sur le site d'essai (les-raleurs-site.vercel.app).
-//
-// Pour la remettre sur lesraleurs.com : passer SHOW_ON_MAIN_SITE à true.
-const SHOW_ON_MAIN_SITE = false;
+// Page de garde « bulle d'encre ».
+// Remise sur lesraleurs.com le 16 nov. 2026 (validée par Théo).
+// Pour la retirer du site principal (et la garder sur le site d'essai) : passer à false.
+const SHOW_ON_MAIN_SITE = true;
 
 const MAIN_SITE = /(^|\.)lesraleurs\.com$/;
 
