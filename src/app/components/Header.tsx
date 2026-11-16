@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import logo from '@/imports/figma/b754442f94e8c7ceed8a38ab7b6000231d38433e.png';
 import { CONTACT_EMAIL } from '../lib/contact';
+import { trialActive } from '../lib/testSite';
 
 interface HeaderProps {
   cartCount: number;
@@ -13,11 +14,16 @@ interface HeaderProps {
 }
 
 const NAV_LINKS = [
+  // Essai : onglet de présentation (site d'essai seulement, voir lib/testSite.ts)
+  ...(trialActive('essai-presentation') ? [{ label: 'Qui suis-je ?', to: '/qui-suis-je' }] : []),
   { label: 'Illustrations', to: '/illustrations' },
   { label: 'Graphisme', to: '/graphisme' },
   { label: 'Commissions', to: '/commissions' },
   { label: 'Contact', to: '/about' },
 ];
+
+// Avec 5 onglets, le menu complet ne tient qu'à partir de 1024 px : burger en dessous.
+const WIDE_NAV = NAV_LINKS.length > 4;
 
 const INSTAGRAM_URL = 'https://www.instagram.com/raleurs_/';
 const navFont = { fontFamily: '"aktiv-grotesk-condensed", sans-serif', fontWeight: 400 };
@@ -58,7 +64,7 @@ export function Header({ cartCount, onCartClick, favoritesCount, onFavoritesClic
           </motion.button>
 
           {/* Menu ordinateur */}
-          <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-8">
+          <nav className={`${WIDE_NAV ? 'hidden lg:flex' : 'hidden md:flex'} absolute left-1/2 -translate-x-1/2 items-center gap-8 whitespace-nowrap`}>
             {NAV_LINKS.map((link) => (
               <button
                 key={link.to}
@@ -136,7 +142,7 @@ export function Header({ cartCount, onCartClick, favoritesCount, onFavoritesClic
 
             {/* Bouton menu mobile */}
             <button
-              className={`${iconButton} md:hidden`}
+              className={`${iconButton} ${WIDE_NAV ? 'lg:hidden' : 'md:hidden'}`}
               onClick={() => setIsMenuOpen((open) => !open)}
               aria-label={isMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
               aria-expanded={isMenuOpen}
@@ -152,7 +158,7 @@ export function Header({ cartCount, onCartClick, favoritesCount, onFavoritesClic
       <AnimatePresence>
         {isMenuOpen && (
           <motion.nav
-            className="site-surface md:hidden fixed left-0 right-0 top-[65px] bottom-0 z-50 bg-white flex flex-col px-6 pt-8 pb-10 overflow-y-auto"
+            className={`site-surface ${WIDE_NAV ? 'lg:hidden' : 'md:hidden'} fixed left-0 right-0 top-[65px] bottom-0 z-50 bg-white flex flex-col px-6 pt-8 pb-10 overflow-y-auto`}
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}

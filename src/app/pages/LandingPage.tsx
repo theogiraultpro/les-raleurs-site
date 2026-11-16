@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { InkBubble } from '../components/InkBubble';
 import { saveStain } from '../lib/inkStain';
+import { trialActive } from '../lib/testSite';
 import { useContent } from '../content/ContentContext';
 import { responsiveImage } from '../lib/image';
 import { GALLERY_CARD_SIZES } from '../components/ProductCard';
@@ -22,7 +23,8 @@ export default function LandingPage() {
 
   // La tache reste à l'écran : on passe directement à la galerie, elle y est déjà en fond.
   const enterGallery = () => {
-    navigate('/illustrations', { replace: true });
+    // Essai (site d'essai) : on arrive sur la présentation ; sinon sur la galerie.
+    navigate(trialActive('essai-presentation') ? '/qui-suis-je' : '/illustrations', { replace: true });
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 

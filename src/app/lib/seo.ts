@@ -44,6 +44,13 @@ const STATIC_PAGES: Record<string, Omit<PageMeta, 'path' | 'type'>> = {
     description:
       'Portfolio de Théo Girault, graphiste et typographe : identités visuelles, affiches d’événements, éditions photographiques et direction artistique, entre art urbain et rigueur typographique suisse.',
   },
+  // Essai sur le site d'essai : pas référencée tant qu'elle n'est pas validée
+  // (retirer noindex et l'ajouter à publicPaths le jour où elle passe sur lesraleurs.com).
+  'qui-suis-je': {
+    title: 'Qui suis-je ? — Théo Girault, Les Râleurs',
+    description: BIO,
+    noindex: true,
+  },
   commissions: {
     title: 'Commandes et illustrations sur mesure — Les Râleurs',
     description:
@@ -193,8 +200,8 @@ export function metaForPath(rawPath: string, content: SiteContent | null): PageM
 
   const fixed = STATIC_PAGES[key];
   if (fixed) {
-    const meta: PageMeta = { ...fixed, path, type: key === 'about' ? 'profile' : 'website' };
-    if (key === '' || key === 'about') meta.jsonLd = [website, person];
+    const meta: PageMeta = { ...fixed, path, type: key === 'about' || key === 'qui-suis-je' ? 'profile' : 'website' };
+    if (key === '' || key === 'about' || key === 'qui-suis-je') meta.jsonLd = [website, person];
     if (key === 'illustrations' && content) {
       meta.image = content.illustrations.find((w) => !w.hidden)?.card.image;
     }

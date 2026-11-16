@@ -6,11 +6,19 @@
 // principal : mettre sa valeur à true dans ON_MAIN_SITE.
 // (essai-vert du 9 nov. 2026 — fond #00541C, titres #FFFCF2 — retiré le 16 nov. :
 // retour aux couleurs de base. Ses règles restent dans l'historique git, commit 5980462.)
-const ON_MAIN_SITE: Record<string, boolean> = {};
+const ON_MAIN_SITE: Record<string, boolean> = {
+  /** Page « Qui suis-je ? » (/qui-suis-je) : onglet en tête du menu, arrivée après la bulle (16 nov. 2026). */
+  'essai-presentation': false,
+};
 
 const MAIN_SITE = /(^|\.)lesraleurs\.com$/;
 
 export const isTestSite = typeof window !== 'undefined' && !MAIN_SITE.test(window.location.hostname);
+
+/** true si l'essai `name` est actif sur ce site. */
+export function trialActive(name: string): boolean {
+  return Boolean(ON_MAIN_SITE[name]) || isTestSite;
+}
 
 /** Pose sur <html> les classes des essais actifs sur ce site. */
 export function applyDesignTrials() {
