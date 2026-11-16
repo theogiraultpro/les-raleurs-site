@@ -66,7 +66,7 @@ export default function Home() {
             viewport={{ once: true }}
             transition={{ delay: 0.4, duration: 0.8 }}
           >
-            Illustrations originales et prints d'art • Créations uniques et roohhh, ça va, on a compris
+            Illustrations originales et prints d'art • Créations uniques
           </motion.p>
         </div>
       </motion.section>
