@@ -138,23 +138,6 @@ function angleGap(a: number, b: number): number {
   return d;
 }
 
-/** Bande effilée le long d'une ligne centrale (largeur 0 = pointe). */
-function taper(center: Point[], widths: number[]): string {
-  const left: Point[] = [];
-  const right: Point[] = [];
-  for (let i = 0; i < center.length; i++) {
-    const [x0, y0] = center[Math.max(0, i - 1)];
-    const [x1, y1] = center[Math.min(center.length - 1, i + 1)];
-    const len = Math.hypot(x1 - x0, y1 - y0) || 1;
-    const nx = -(y1 - y0) / len;
-    const ny = (x1 - x0) / len;
-    const w = widths[i] / 2;
-    left.push([center[i][0] + nx * w, center[i][1] + ny * w]);
-    right.push([center[i][0] - nx * w, center[i][1] - ny * w]);
-  }
-  return smoothClosedPath(clockwise([...left, ...right.reverse()]), 0.6);
-}
-
 /**
  * Tache d'encre posée : masse irrégulière aux grands lobes, bordée d'une
  * couronne de fines pointes (plus longues dans le sens du coup).

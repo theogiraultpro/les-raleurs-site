@@ -4,7 +4,7 @@ import { InkBubble } from '../components/InkBubble';
 import { saveStain } from '../lib/inkStain';
 import { trialActive } from '../lib/testSite';
 import { useContent } from '../content/ContentContext';
-import { responsiveImage } from '../lib/image';
+import { fetchPriority, responsiveImage } from '../lib/image';
 import { GALLERY_CARD_SIZES } from '../components/ProductCard';
 import logo from '@/imports/figma/b754442f94e8c7ceed8a38ab7b6000231d38433e.png';
 
@@ -44,7 +44,7 @@ export default function LandingPage() {
 
       <div aria-hidden="true" className="pointer-events-none fixed left-0 top-0 h-px w-px overflow-hidden opacity-0">
         {preload.map((src) => (
-          <img key={src} {...responsiveImage(src, GALLERY_CARD_SIZES, 960)} alt="" loading="eager" fetchPriority="low" />
+          <img key={src} {...responsiveImage(src, GALLERY_CARD_SIZES, 960)} alt="" loading="eager" {...fetchPriority('low')} />
         ))}
       </div>
     </main>

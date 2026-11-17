@@ -85,13 +85,18 @@ export default function CustomCursor() {
       l1.style.transform = t;
       l2.style.transform = t;
 
-      raf = requestAnimationFrame(animate);
+      // Souris immobile et curseur arrivé : on met l'animation en pause
+      // (elle repart au prochain mouvement) au lieu de tourner pour rien.
+      const settled =
+        Math.abs(curX - mouseX) < 0.1 && Math.abs(curY - mouseY) < 0.1 && speed < 0.05 && Math.abs(rotation) < 0.1;
+      raf = settled ? 0 : requestAnimationFrame(animate);
     };
     raf = requestAnimationFrame(animate);
 
     const onMove = (e: MouseEvent) => {
       mouseX = e.clientX;
       mouseY = e.clientY;
+      if (!raf) raf = requestAnimationFrame(animate);
       const state = getElementCursorState(e.target as HTMLElement);
       setCursor(prev =>
         prev.size === state.size && prev.invert === state.invert ? prev : state
@@ -130,8 +135,12 @@ export default function CustomCursor() {
           height: px,
           backgroundColor: '#808080',
           mixBlendMode: 'saturation',
-          transition: 'width 0.18s ease, height 0.18s ease, opacity 0.18s ease',
+          transition: cursor.invert
+            ? 'width 0.18s ease, height 0.18s ease, opacity 0.18s ease'
+            : 'width 0.18s ease, height 0.18s ease, opacity 0.18s ease, visibility 0s linear 0.18s',
           opacity: cursor.invert ? 1 : 0,
+          // Masqué pour de vrai quand il ne sert pas : son mélange de couleurs coûte cher à l'affichage.
+          visibility: cursor.invert ? 'visible' : 'hidden',
         }}
       />
     </>

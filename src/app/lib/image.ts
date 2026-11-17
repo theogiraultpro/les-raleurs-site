@@ -48,3 +48,10 @@ export function responsiveImage(src: string, sizes: string, maxWidth = MAX_PUBLI
     },
   };
 }
+
+/**
+ * Priorité de téléchargement d'une image. React 18 ne connaît pas encore
+ * `fetchPriority` (il l'ignore) : on passe l'attribut HTML en minuscules.
+ */
+export const fetchPriority = (value: 'high' | 'low' | 'auto') =>
+  ({ fetchpriority: value }) as unknown as Record<string, never>;

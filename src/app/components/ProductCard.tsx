@@ -3,7 +3,7 @@ import { canHover } from '../lib/mobile';
 import { ShoppingCart, Heart } from 'lucide-react';
 import { ImageCountBadge } from './ImageCountBadge';
 import { useRef, useState } from 'react';
-import { responsiveImage } from '../lib/image';
+import { fetchPriority, responsiveImage } from '../lib/image';
 
 /** Largeur d'affichage des cartes de la galerie (partagée avec le préchargement de l'accueil). */
 export const GALLERY_CARD_SIZES = '(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw';
@@ -116,7 +116,7 @@ export function ProductCard({ id, name, price, image, category, onAddToCart, onT
               {...responsiveImage(image, GALLERY_CARD_SIZES, 960)}
               alt={name}
               loading={priority ? 'eager' : 'lazy'}
-              fetchPriority={priority ? 'high' : 'auto'}
+              {...fetchPriority(priority ? 'high' : 'auto')}
               className="w-full h-full object-cover"
             />
           </motion.div>

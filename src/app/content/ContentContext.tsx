@@ -1,8 +1,15 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { defaultContent } from './defaultContent';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Illustration, Project, SiteContent } from './types';
 
-const ContentContext = createContext<SiteContent>(defaultContent);
+interface ContentValue extends SiteContent {
+  visibleIllustrations: Illustration[];
+  visibleProjects: Project[];
+}
+
+const ContentContext = createContext<ContentValue | null>(null);
+
+/** Contenu de départ, chargé seulement s'il faut s'en servir (le site lit d'habitude le contenu publié). */
+const loadDefaultContent = () => import('./defaultContent').then((m) => m.defaultContent);
 
 /** Délai max d'attente du contenu publié avant d'afficher le contenu de départ. */
 const LOAD_TIMEOUT_MS = 2500;
@@ -35,8 +42,8 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), LOAD_TIMEOUT_MS);
     fetchPublishedContent(controller.signal)
-      .then((published) => setContent(published ?? defaultContent))
-      .catch(() => setContent(defaultContent))
+      .then(async (published) => setContent(published ?? (await loadDefaultContent())))
+      .catch(async () => setContent(await loadDefaultContent()))
       .finally(() => clearTimeout(timer));
     return () => {
       clearTimeout(timer);
@@ -46,18 +53,26 @@ export function ContentProvider({ children }: { children: ReactNode }) {
 
   // Écran blanc très bref le temps de lire le contenu, pour ne jamais afficher
   // une version périmée (œuvre masquée, prix modifié…).
-  if (!content) return <div className="site-surface min-h-screen bg-white" />;
+  // Listes visibles calculées une seule fois par contenu (et non à chaque affichage).
+  const value = useMemo<ContentValue | null>(
+    () =>
+      content && {
+        ...content,
+        visibleIllustrations: content.illustrations.filter((item) => !item.hidden),
+        visibleProjects: content.projects.filter((item) => !item.hidden),
+      },
+    [content],
+  );
 
-  return <ContentContext.Provider value={content}>{children}</ContentContext.Provider>;
+  if (!value) return <div className="site-surface min-h-screen bg-white" />;
+
+  return <ContentContext.Provider value={value}>{children}</ContentContext.Provider>;
 }
 
-export function useContent() {
+export function useContent(): ContentValue {
   const content = useContext(ContentContext);
-  return {
-    ...content,
-    visibleIllustrations: content.illustrations.filter((item) => !item.hidden),
-    visibleProjects: content.projects.filter((item) => !item.hidden),
-  };
+  if (!content) throw new Error('useContent doit être utilisé dans <ContentProvider>');
+  return content;
 }
 
 export type Entry =

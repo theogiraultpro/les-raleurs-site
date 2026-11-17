@@ -1,6 +1,6 @@
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
 import { useState } from 'react';
-import { Instagram, Mail, Send } from 'lucide-react';
+import { Instagram, Send } from 'lucide-react';
 import { CONTACT_EMAIL, sendForm } from '../lib/contact';
 import behanceLogo from '../../assets/behance-logo.png';
 

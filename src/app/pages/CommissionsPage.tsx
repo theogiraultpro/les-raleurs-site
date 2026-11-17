@@ -285,7 +285,7 @@ export default function CommissionsPage() {
           </h2>
           <div className="overflow-x-auto pb-8">
             <div className="flex gap-6 min-w-max px-6 mx-auto justify-center">
-              {examples.map((example, index) => (
+              {examples.map((example) => (
                 <motion.div
                   key={example.id}
                   className="relative w-64 h-64 bg-gray-100 rounded-xl overflow-hidden group cursor-pointer flex-shrink-0"
