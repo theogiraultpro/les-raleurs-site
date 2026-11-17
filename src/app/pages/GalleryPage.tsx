@@ -86,21 +86,38 @@ export default function GalleryPage({ title, subtitle, description, images, shop
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
-  // Téléphone : les visuels défilent au doigt (glissé horizontal, aimanté).
-  const swipeRef = useRef<HTMLDivElement>(null);
-  const onSwipeScroll = () => {
-    const el = swipeRef.current;
-    if (!el || !el.clientWidth) return;
-    const index = Math.round(el.scrollLeft / el.clientWidth);
-    if (index !== currentIndex && index >= 0 && index < images.length) setCurrentIndex(index);
+  // Téléphone : un glissé du doigt = exactement une image de plus ou de moins,
+  // changement net (sans glissement ni animation), quelle que soit la force du geste.
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
   };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+    if (dx < 0) nextImage();
+    else prevImage();
+  };
+  // Images voisines préchargées : le passage à la suivante est immédiat.
   useEffect(() => {
-    const el = swipeRef.current;
-    if (!el || !el.clientWidth) return;
-    if (Math.round(el.scrollLeft / el.clientWidth) !== currentIndex) {
-      el.scrollTo({ left: currentIndex * el.clientWidth, behavior: 'smooth' });
+    if (!isPhone || images.length < 2) return;
+    for (const offset of [1, -1]) {
+      const neighbour = images[(currentIndex + offset + images.length) % images.length];
+      const img = new Image();
+      const attrs = responsiveImage(neighbour.src, '100vw');
+      if ('srcSet' in attrs && attrs.srcSet) {
+        img.sizes = '100vw';
+        img.srcset = attrs.srcSet;
+      }
+      img.src = attrs.src;
     }
-  }, [currentIndex]);
+  }, [currentIndex, images]);
 
   if (!current) return null;
 
@@ -119,22 +136,18 @@ export default function GalleryPage({ title, subtitle, description, images, shop
             <div className="relative">
               {isPhone && hasMany ? (
                 <div
-                  ref={swipeRef}
-                  onScroll={onSwipeScroll}
-                  className="flex snap-x snap-mandatory items-center overflow-x-auto rounded-[2rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                  style={{ boxShadow: '0 30px 60px -20px rgba(0, 0, 0, 0.35)' }}
+                  onTouchStart={onTouchStart}
+                  onTouchEnd={onTouchEnd}
+                  className="overflow-hidden rounded-[2rem]"
+                  style={{ touchAction: 'pan-y', boxShadow: '0 30px 60px -20px rgba(0, 0, 0, 0.35)' }}
                 >
-                  {images.map((image, index) => (
-                    <img
-                      key={`${image.src}-${index}`}
-                      {...responsiveImage(image.src, '100vw')}
-                      alt={`${cleanTitle} - ${image.caption}`}
-                      loading={index < 2 ? 'eager' : 'lazy'}
-                      draggable={false}
-                      className="h-auto w-full shrink-0 snap-center"
-                      onClick={() => setLightboxOpen(true)}
-                    />
-                  ))}
+                  <img
+                    {...responsiveImage(current.src, '100vw')}
+                    alt={`${cleanTitle} - ${current.caption}`}
+                    draggable={false}
+                    className="block h-auto w-full select-none"
+                    onClick={() => setLightboxOpen(true)}
+                  />
                 </div>
               ) : (
               /* Passage d'un visuel à l'autre : instantané, sans animation */

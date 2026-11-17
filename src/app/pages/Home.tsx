@@ -34,7 +34,7 @@ export default function Home() {
     <>
       {/* Hero Section */}
       <motion.section
-        className="pt-24 md:pt-48 pb-20 md:pb-24 px-4 md:px-6"
+        className="pt-24 md:pt-48 pb-8 md:pb-24 px-4 md:px-6"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.25 }}

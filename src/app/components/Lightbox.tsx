@@ -87,7 +87,7 @@ export default function Lightbox({ src, alt, onClose, onPrev, onNext }: Lightbox
         onTouchEnd={handleTouchEnd}
       >
         {/* Overlay */}
-        <motion.div className="absolute inset-0 bg-black/95" onClick={onClose} />
+        <motion.div className="absolute inset-0 bg-black" onClick={onClose} />
 
         {/* Close button */}
         <button
