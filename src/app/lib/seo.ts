@@ -8,6 +8,7 @@ export const SITE_URL = 'https://lesraleurs.com';
 export const SITE_NAME = 'Les Râleurs';
 export const AUTHOR = 'Théo Girault';
 const INSTAGRAM = 'https://www.instagram.com/raleurs_/';
+const BEHANCE = 'https://www.behance.net/theogirault';
 const DEFAULT_IMAGE = '/og-share.jpg';
 
 export interface PageMeta {
@@ -104,7 +105,7 @@ const person = {
   jobTitle: 'Graphiste, typographe et illustrateur',
   url: SITE_URL,
   email: 'mailto:contact@lesraleurs.com',
-  sameAs: [INSTAGRAM],
+  sameAs: [INSTAGRAM, BEHANCE],
   brand: { '@type': 'Brand', name: SITE_NAME },
 };
 
