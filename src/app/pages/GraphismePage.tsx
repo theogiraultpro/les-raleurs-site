@@ -36,7 +36,7 @@ export default function GraphismePage() {
       >
         <div className="max-w-7xl mx-auto text-center">
           <motion.h1
-            className="text-[18.5vw] md:text-[10rem] mb-4 md:mb-2 tracking-tight leading-[0.9] md:leading-none"
+            className="text-[18.5vw] md:text-[10rem] mb-1 md:mb-0 tracking-tight leading-[0.85] md:leading-[0.9]"
             style={{
               fontFamily: '"aktiv-grotesk-condensed", sans-serif',
               fontWeight: 800,
