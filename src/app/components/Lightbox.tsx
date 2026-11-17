@@ -24,12 +24,31 @@ export default function Lightbox({ src, alt, onClose, onPrev, onNext }: Lightbox
       if (e.key === 'ArrowRight') onNext?.();
     };
     window.addEventListener('keydown', handleKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', handleKey);
-      document.body.style.overflow = '';
-    };
+    return () => window.removeEventListener('keydown', handleKey);
   }, [onClose, onPrev, onNext]);
+
+  // Page derrière complètement figée tant que l'image est ouverte (y compris
+  // sur iPhone, où « overflow: hidden » ne suffit pas) ; on la remet à sa place en fermant.
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    const body = document.body.style;
+    const saved = { position: body.position, top: body.top, left: body.left, right: body.right, overflow: body.overflow };
+    Object.assign(body, { position: 'fixed', top: `-${scrollY}px`, left: '0', right: '0', overflow: 'hidden' });
+    return () => {
+      Object.assign(body, saved);
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
+  // Le glissé du doigt reste dans la visionneuse : il ne fait jamais défiler la page.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const block = (e: TouchEvent) => e.preventDefault();
+    el.addEventListener('touchmove', block, { passive: false });
+    return () => el.removeEventListener('touchmove', block);
+  }, []);
 
   // Sur téléphone : glisser le doigt vers la gauche ou la droite change d'image.
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -37,6 +56,7 @@ export default function Lightbox({ src, alt, onClose, onPrev, onNext }: Lightbox
     touchStart.current = { x: touch.clientX, y: touch.clientY };
   };
   const handleTouchEnd = (e: React.TouchEvent) => {
+    e.stopPropagation();
     const start = touchStart.current;
     touchStart.current = null;
     if (!start) return;
@@ -56,7 +76,9 @@ export default function Lightbox({ src, alt, onClose, onPrev, onNext }: Lightbox
   return (
     <AnimatePresence>
       <motion.div
+        ref={rootRef}
         className="fixed inset-0 z-[60] flex items-center justify-center"
+        style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
