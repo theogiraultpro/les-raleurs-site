@@ -327,6 +327,7 @@ const MAX_PIECES = 4;
 export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
   const reducedMotion = useReducedMotion() ?? false;
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const posRef = useRef<SVGGElement>(null);
   const bodyRef = useRef<SVGGElement>(null);
   const gooRef = useRef<SVGGElement>(null);
   const filterRef = useRef<SVGFilterElement>(null);
@@ -685,8 +686,9 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
       }
 
       // ---- Dessin
+      posRef.current?.setAttribute('transform', `translate(${f2(x)} ${f2(y)})`);
       const button = buttonRef.current;
-      if (button) button.style.transform = `translate(${x - radius * 1.5}px, ${y - radius * 1.5}px)`;
+      if (button) button.style.transform = `translate(${x - radius * 1.25}px, ${y - radius * 1.25}px)`;
       // Écrasement contre le mur : le côté du mur s'aplatit, le côté opposé
       // ne bouge presque pas, la bulle s'élargit le long du mur.
       const squashX = wallX.pen / (radius * 2);
@@ -826,7 +828,8 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
     window.setTimeout(onBurst, (reducedMotion ? 500 : 1150) + (drops.length - 1) * step);
   };
 
-  const size = radius * 3;
+  // Zone cliquable : un peu plus large que la bulle au repos.
+  const hit = radius * 2.5;
   const area = radius * 9;
 
   return (
@@ -842,31 +845,12 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
         </svg>
       )}
 
-      {/* La bulle */}
+      {/* La bulle : dessinée sur un calque plein écran (aucun bord ne peut la
+          couper, même déformée ou coupée en morceaux) ; le bouton invisible
+          qui la suit sert seulement à la toucher / cliquer. */}
       {!gone && (
-        <button
-          ref={buttonRef}
-          type="button"
-          aria-label="Entrer dans la galerie"
-          data-cursor-plain
-          onClick={explode}
-          onPointerDown={(event) => (tapStart.current = { x: event.clientX, y: event.clientY })}
-          onPointerEnter={() => (hovered.current = true)}
-          onPointerLeave={() => (hovered.current = false)}
-          onFocus={() => (hovered.current = true)}
-          onBlur={() => (hovered.current = false)}
-          className="fixed left-0 top-0 appearance-none rounded-full border-0 bg-transparent p-0 outline-none focus:outline-none focus-visible:outline-none"
-          style={{ width: size, height: size, transform: 'translate(-9999px, -9999px)', WebkitTapHighlightColor: 'transparent', willChange: 'transform', outline: 'none', boxShadow: 'none' }}
-        >
-          <motion.svg
-            width={size}
-            height={size}
-            viewBox={`${-size / 2} ${-size / 2} ${size} ${size}`}
-            initial={reducedMotion ? false : { scale: 0 }}
-            animate={{ scale: visible ? 1 : 0 }}
-            transition={{ type: 'spring', stiffness: 170, damping: 11, mass: 0.9 }}
-            style={{ overflow: 'visible' }}
-          >
+        <>
+          <svg className="pointer-events-none fixed inset-0 h-full w-full" style={{ overflow: 'visible' }} aria-hidden="true">
             <defs>
               {/* Matière liquide : les formes proches se relient par des ponts d'encre (couleur de l'encre conservée). */}
               <filter
@@ -883,22 +867,45 @@ export function InkBubble({ onSplat, onBurst }: InkBubbleProps) {
                 <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 30 -13" />
               </filter>
             </defs>
-            <g ref={gooRef} className="ink-fill" fill={INK}>
-              <g ref={bodyRef}>
-                <path ref={shapeRef} d={bubblePath(radius, 0, 1, phases)} />
-              </g>
-              {Array.from({ length: MAX_PIECES }, (_, i) => (
-                <path
-                  key={i}
-                  ref={(el) => {
-                    pieceRefs.current[i] = el;
-                  }}
-                  d=""
-                />
-              ))}
+            <g ref={posRef} transform="translate(-9999 -9999)">
+              <motion.g
+                initial={reducedMotion ? false : { scale: 0 }}
+                animate={{ scale: visible ? 1 : 0 }}
+                transition={{ type: 'spring', stiffness: 170, damping: 11, mass: 0.9 }}
+                style={{ transformOrigin: '0px 0px' }}
+              >
+                <g ref={gooRef} className="ink-fill" fill={INK}>
+                  <g ref={bodyRef}>
+                    <path ref={shapeRef} d={bubblePath(radius, 0, 1, phases)} />
+                  </g>
+                  {Array.from({ length: MAX_PIECES }, (_, i) => (
+                    <path
+                      key={i}
+                      ref={(el) => {
+                        pieceRefs.current[i] = el;
+                      }}
+                      d=""
+                    />
+                  ))}
+                </g>
+              </motion.g>
             </g>
-          </motion.svg>
-        </button>
+          </svg>
+          <button
+            ref={buttonRef}
+            type="button"
+            aria-label="Entrer dans la galerie"
+            data-cursor-plain
+            onClick={explode}
+            onPointerDown={(event) => (tapStart.current = { x: event.clientX, y: event.clientY })}
+            onPointerEnter={() => (hovered.current = true)}
+            onPointerLeave={() => (hovered.current = false)}
+            onFocus={() => (hovered.current = true)}
+            onBlur={() => (hovered.current = false)}
+            className="fixed left-0 top-0 appearance-none rounded-full border-0 bg-transparent p-0 opacity-0 outline-none"
+            style={{ width: hit, height: hit, transform: 'translate(-9999px, -9999px)', WebkitTapHighlightColor: 'transparent' }}
+          />
+        </>
       )}
     </>
   );
