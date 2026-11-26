@@ -1,5 +1,54 @@
 /*
  * Essais de design — actifs seulement sur le site d'essai (voir src/app/lib/testSite.ts).
  * Règles hors @layer : elles passent devant les classes Tailwind sans !important.
- * Aucun essai en cours (essai vert retiré le 16 nov. 2026).
  */
+
+/* ---------- Essai « palette » (26 nov. 2026) ----------
+ * Blanc → blanc cassé #F5F2EA, noir → noir charbon #1C1C1E, touches de bleu #2D5BFF.
+ * Les classes Tailwind bg-white, text-black, border-black… lisent ces variables :
+ * les changer ici repeint tout le site d'un coup.
+ */
+html.essai-palette {
+  --color-white: #f5f2ea;
+  --color-black: #1c1c1e;
+  --background: #f5f2ea;
+  --foreground: #1c1c1e;
+  --essai-bleu: #2d5bff;
+  /* Fonds gris très clairs (encarts, survols) réchauffés pour aller avec le blanc cassé */
+  --color-gray-50: #eeeadf;
+  --color-gray-100: #e7e2d5;
+  background-color: var(--color-white);
+  color: var(--color-black);
+}
+
+/* Bulle et taches d'encre en noir charbon */
+html.essai-palette .ink-fill {
+  fill: var(--color-black);
+}
+
+/* Touches de bleu */
+/* — onglet de la page en cours, et survol des onglets */
+html.essai-palette .nav-link[data-active],
+html.essai-palette .nav-link:hover {
+  color: var(--essai-bleu);
+}
+/* — pastille du panier */
+html.essai-palette .cart-badge {
+  background-color: var(--essai-bleu);
+}
+/* — boutons noirs : bleus au survol */
+html.essai-palette :is(button, a).bg-black:hover {
+  background-color: var(--essai-bleu);
+}
+/* — liens du pied de page au survol */
+html.essai-palette footer a:hover {
+  color: var(--essai-bleu);
+}
+/* — texte sélectionné et contour clavier */
+html.essai-palette ::selection {
+  background-color: var(--essai-bleu);
+  color: var(--color-white);
+}
+html.essai-palette :focus-visible {
+  outline-color: var(--essai-bleu);
+}

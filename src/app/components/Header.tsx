@@ -69,7 +69,8 @@ export function Header({ cartCount, onCartClick, favoritesCount, onFavoritesClic
               <button
                 key={link.to}
                 onClick={() => navigate(link.to)}
-                className="text-base hover:text-gray-600 transition-colors"
+                data-active={location.pathname.startsWith(link.to) || undefined}
+                className="nav-link text-base hover:text-gray-600 transition-colors"
                 style={navFont}
               >
                 {link.label}
@@ -130,7 +131,7 @@ export function Header({ cartCount, onCartClick, favoritesCount, onFavoritesClic
               <ShoppingBag size={20} />
               {cartCount > 0 && (
                 <motion.span
-                  className="absolute -top-1 -right-1 bg-black text-white text-xs w-5 h-5 rounded-full flex items-center justify-center"
+                  className="cart-badge absolute -top-1 -right-1 bg-black text-white text-xs w-5 h-5 rounded-full flex items-center justify-center"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', stiffness: 500, damping: 15 }}
@@ -174,7 +175,8 @@ export function Header({ cartCount, onCartClick, favoritesCount, onFavoritesClic
                 >
                   <button
                     onClick={() => navigate(link.to)}
-                    className="text-5xl leading-tight tracking-tight text-left w-full py-1"
+                    data-active={location.pathname.startsWith(link.to) || undefined}
+                    className="nav-link text-5xl leading-tight tracking-tight text-left w-full py-1"
                     style={{
                       fontFamily: '"aktiv-grotesk-condensed", sans-serif',
                       fontWeight: 800,

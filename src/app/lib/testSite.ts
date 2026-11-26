@@ -9,6 +9,8 @@
 const ON_MAIN_SITE: Record<string, boolean> = {
   /** Page « Qui suis-je ? » (/qui-suis-je) : onglet en tête du menu, arrivée après la bulle (16 nov. 2026). */
   'essai-presentation': false,
+  /** Palette : blanc cassé #F5F2EA, noir charbon #1C1C1E, touches de bleu #2D5BFF (26 nov. 2026). */
+  'essai-palette': false,
 };
 
 const MAIN_SITE = /(^|\.)lesraleurs\.com$/;
